@@ -28,12 +28,12 @@ from scipy.io import loadmat
 from typing import Dict, List
 from sklearn import preprocessing
 from scipy.ndimage import gaussian_filter1d
-from torch_geometric.data import Data, download_url
+from torch_geometric.data import Data, download_url as tg_download_url
 from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from torch_geometric.utils import coalesce, to_dense_adj, dense_to_sparse
 
 # Local variables
-from ..main_utils import (
+from main_utils import (
     RAW_ZIP,
     ROOT_DIR,
     RAW_FILES,

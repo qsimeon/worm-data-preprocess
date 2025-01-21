@@ -3,6 +3,15 @@ from ._pkg import *
 # Initialize logger
 logger = logging.getLogger(__name__)
 
+def download_url_with_progress(url, folder, log=True):
+    """
+    A wrapper for torch_geometric's download_url to add very simple binary progress bar.
+    """
+    with tqdm(desc="Downloading", total=1, unit="file") as progress:
+        result = tg_download_url(url, folder, log)
+        progress.update(1)  # Updates the progress bar by 1 unit
+    return result
+
 
 def process_single_dataset(args):
     """Helper function to process a single dataset
