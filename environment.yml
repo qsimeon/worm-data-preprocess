@@ -1,0 +1,18 @@
+name: worm-preprocess
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.12
+  - pytorch
+  - numpy
+  - pandas
+  - scipy
+  - h5py
+  - mat73
+  - scikit-learn
+  - pip
+  - pip:
+      - torch-geometric
+      - tqdm
+      - pynwb
