@@ -9,7 +9,7 @@ logger = logging.getLogger(__name__)
 def download_url_with_progress(url, folder, log=True, filename=None):
     """
     A wrapper for torch_geometric's download_url to add a simple binary
-    progress bar and optionally print the file size before starting.
+    progress bar and optionally log the file size before starting.
     """
     # Try to fetch the file size
     try:
@@ -320,7 +320,7 @@ def extract_zip(path: str, folder: str = None, log: bool = True, delete_zip: boo
     Args:
         path (str): The path to the zip archive.
         folder (str, optional): The folder where the files will be extracted to. Defaults to the parent of `path`.
-        log (bool, optional): If False, will not print anything to the console. Default is True.
+        log (bool, optional): If False, will not log anything to the console. Default is True.
         delete_zip (bool, optional): If True, will delete the zip archive after extraction. Default is True.
 
     Steps:
@@ -331,12 +331,11 @@ def extract_zip(path: str, folder: str = None, log: bool = True, delete_zip: boo
             - Extract the remaining members to the specified folder.
         4. Delete the zip file if `delete_zip` is True.
     """
-    print(path)
-
     if folder is None:
         folder = os.path.dirname(path)
+    zip_filename = os.path.basename(path)
     if log:
-        print(f"Extracting {path}...")
+        logger.info(f"Extracting {zip_filename}...")
     with zipfile.ZipFile(path, "r") as zip_ref:
         for member in zip_ref.namelist():
             if not member.startswith("__MACOSX/"):

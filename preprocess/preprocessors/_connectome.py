@@ -5,6 +5,7 @@ which are subclasses of ConnectomeBasePreprocessor.
 Count: 10
 """
 from preprocess._pkg import *
+from preprocess.preprocessors._helpers import *
 from preprocess.preprocessors._base_preprocessors import ConnectomeBasePreprocessor, DefaultPreprocessor
 
 

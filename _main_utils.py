@@ -162,15 +162,6 @@ EXPERIMENT_DATASETS = {
     "Venkatachalam2024",  # This is unpublished data. Downloaded from chemosensory-data.worm.world/.
 }
 
-SYNTHETIC_DATASETS = {  # Datasets created with the `CreateSyntheticDataset.ipynb` notebook.
-    "Sines0000",
-    "Lorenz0000",
-    "WhiteNoise0000",
-    "RandWalk0000",
-    "VanDerPol0000",
-    "Wikitext0000",
-}
-
 
 # Method for globally setting all random seeds
 def init_random_seeds(seed=0):
