@@ -3,8 +3,6 @@ from preprocess.preprocessors._base_preprocessors import *
 from preprocess.preprocessors._neural import *
 from preprocess.preprocessors._connectome import *
 
-# Initialize logger
-logger = logging.getLogger(__name__)
 
 def download_url_with_progress(url, folder, log=True, filename=None):
     """
@@ -109,17 +107,17 @@ def pickle_neural_data(
         5. Save the preprocessed data to .pickle format.
         6. Optionally, delete the unzipped folder if cleanup is True.
     """
-    zip_path = os.path.join(ROOT_DIR, zipfile)
-    source_path = os.path.join(ROOT_DIR, zipfile.strip(".zip"))
-    # Make the neural data directory if it doesn't exist
-    processed_path = os.path.join(ROOT_DIR, "data/processed/neural")
+    zip_path = os.path.join(ROOT_DIR, "data", zipfile)
+    source_path = os.path.join(ROOT_DIR, "data", zipfile.strip(".zip"))
+    processed_path = os.path.join(ROOT_DIR, "data", "processed", "neural")
+    # make data/processed/neural directory
     if not os.path.exists(processed_path):
         os.makedirs(processed_path, exist_ok=True)
     # If .zip not found in the root directory, download the curated open-source worm datasets
     if not os.path.exists(source_path):
         try:
             # downloads opensource_neural_data
-            download_url_with_progress(url=url, folder=ROOT_DIR, filename=zipfile)
+            download_url_with_progress(url=url, folder=os.path.join(ROOT_DIR, "data"), filename=zipfile)
         except Exception as e:
             logger.error(f"Failed to download using async method: {e}")
             logger.info("Falling back to wget...")

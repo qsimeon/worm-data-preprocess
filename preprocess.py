@@ -6,7 +6,6 @@ if __name__ == "__main__":
     parser.add_argument('-v', '--verbose', action='store_true', help='Print detailed configuration')
     args = parser.parse_args()
 
-    print("Beginning preprocessing...\n")
     if args.verbose:
         print("Configuration:", json.dumps(PREPROCESS_CONFIG, indent=2), end="\n\n")
     else:
