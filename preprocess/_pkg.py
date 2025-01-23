@@ -34,7 +34,7 @@ from sklearn.preprocessing import MinMaxScaler, StandardScaler
 from torch_geometric.utils import coalesce, to_dense_adj, dense_to_sparse
 
 # Local variables
-from main_utils import (
+from _main_utils import (
     RAW_ZIP,
     ROOT_DIR,
     RAW_FILES,
@@ -44,4 +44,4 @@ from main_utils import (
     RAW_DATA_DIR,
     EXPERIMENT_DATASETS,
 )
-from .config import PREPROCESS_CONFIG
+from preprocess.config import PREPROCESS_CONFIG

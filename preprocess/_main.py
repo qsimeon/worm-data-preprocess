@@ -1,4 +1,4 @@
-from ._utils import *
+from preprocess._utils import *
 
 
 def process_data(config: dict) -> None:
@@ -45,9 +45,3 @@ def process_data(config: dict) -> None:
         logger.info("Neural data already preprocessed.")
 
     return None
-
-
-# Identical to running `python preprocess.py`
-if __name__ == "__main__":
-    print("Configuration:", json.dumps(PREPROCESS_CONFIG, indent=2), end="\n\n")
-    process_data(PREPROCESS_CONFIG)
