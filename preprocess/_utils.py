@@ -5,11 +5,12 @@ logger = logging.getLogger(__name__)
 
 def download_url_with_progress(url, folder, log=True):
     """
-    A wrapper for torch_geometric's download_url to add very simple binary progress bar.
+    A wrapper for torch_geometric's download_url to add very simple binary
+    progress bar to indicate a download is occuring.
     """
-    with tqdm(desc="Downloading", total=1, unit="file") as progress:
+    with tqdm(desc=f"Downloading to {folder}...", total=1, unit="file") as progress:
         result = tg_download_url(url, folder, log)
-        progress.update(1)  # Updates the progress bar by 1 unit
+        progress.update(1)
     return result
 
 
@@ -97,7 +98,7 @@ def pickle_neural_data(
     # If .zip not found in the root directory, download the curated open-source worm datasets
     if not os.path.exists(source_path):
         try:
-            download_url(url=url, folder=ROOT_DIR, filename=zipfile)
+            download_url_with_progress(url=url, folder=ROOT_DIR, filename=zipfile)
         except Exception as e:
             logger.error(f"Failed to download using async method: {e}")
             logger.info("Falling back to wget...")
@@ -197,7 +198,7 @@ def get_presaved_datasets(url, file):
     presaved_file = file
     presave_path = os.path.join(ROOT_DIR, presaved_file)
     data_path = os.path.join(ROOT_DIR, "data")
-    download_url(url=presaved_url, folder=ROOT_DIR, filename=presaved_file)
+    download_url_with_progress(url=presaved_url, folder=ROOT_DIR, filename=presaved_file)
     extract_zip(presave_path, folder=data_path, delete_zip=True)
     return None
 
@@ -249,7 +250,7 @@ def preprocess_connectome(raw_files, source_connectome=None):
     # Check that all necessary files are present
     all_files_present = all([os.path.exists(os.path.join(RAW_DATA_DIR, rf)) for rf in raw_files])
     if not all_files_present:
-        download_url(url=RAW_DATA_URL, folder=ROOT_DIR, filename=RAW_ZIP)
+        download_url_with_progress(url=RAW_DATA_URL, folder=ROOT_DIR, filename=RAW_ZIP)
         extract_zip(
             path=os.path.join(ROOT_DIR, RAW_ZIP),
             folder=RAW_DATA_DIR,
