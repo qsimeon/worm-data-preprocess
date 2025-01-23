@@ -1,5 +1,5 @@
 # Downloaded datasets
-opensource_neural_data/
+data/opensource_neural_data/
 *.zip
 data/datasets/
 data/raw/

@@ -128,7 +128,7 @@ def pickle_neural_data(
                 [
                     "wget",
                     "-O",
-                    os.path.join(ROOT_DIR, zipfile),
+                    zip_path,
                     "--tries=3",  # Retry 3 times
                     "--continue",  # Resume partial downloads
                     "--progress=bar:force",  # Show progress bar
@@ -144,7 +144,7 @@ def pickle_neural_data(
             bash_command = [
                 "unzip",
                 zip_path,
-                "{}/*".format(source_dataset),
+                f"{source_dataset}/*",
                 "-d",
                 source_path,
                 "-x",

@@ -456,7 +456,7 @@ class NeuralBasePreprocessor:
         self.interpolate_method = interpolate_method
         self.resample_dt = resample_dt
         self.smooth_kwargs = kwargs
-        self.raw_data_path = os.path.join(ROOT_DIR, "opensource_neural_data")
+        self.raw_data_path = os.path.join(ROOT_DIR, "data", "opensource_neural_data")
         self.processed_data_path = os.path.join(ROOT_DIR, "data/processed/neural")
 
     def smooth_data(self, data, time_in_seconds):
