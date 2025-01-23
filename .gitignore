@@ -1,6 +1,7 @@
 # Downloaded datasets
-opensource_data/
+opensource_neural_data/
 data/datasets/
+data/raw/
 data/processed/
 
 

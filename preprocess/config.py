@@ -1,8 +1,8 @@
 PREPROCESS_CONFIG = {
     # URL to download open source worm behavior dataset
-    "opensource_url": "https://www.dropbox.com/scl/fi/vfygz1twi1jg62cfssc0w/opensource_data.zip?rlkey=qa4vpwcoza3k9v5o2watwblth&dl=1",
-    # Local filename for downloaded opensource data
-    "opensource_zipfile": "opensource_data.zip",
+    "opensource_neural_url": "https://www.dropbox.com/scl/fi/vfygz1twi1jg62cfssc0w/opensource_data.zip?rlkey=qa4vpwcoza3k9v5o2watwblth&dl=1",
+    # Local filename for downloaded opensource neural data
+    "opensource_neural_zipfile": "opensource_neural_data.zip",
     # URL to download pre-processed datasets
     "presaved_url": "https://www.dropbox.com/scl/fi/baikxamldjyrf5maephk3/presaved_datasets.zip?rlkey=4qrso6forjpvfdbm9mll3ndxf&dl=1",
     # Local filename for pre-processed data

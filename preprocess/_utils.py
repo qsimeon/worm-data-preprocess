@@ -3,14 +3,31 @@ from ._pkg import *
 # Initialize logger
 logger = logging.getLogger(__name__)
 
-def download_url_with_progress(url, folder, log=True):
+def download_url_with_progress(url, folder, log=True, filename=None):
     """
-    A wrapper for torch_geometric's download_url to add very simple binary
-    progress bar to indicate a download is occuring.
+    A wrapper for torch_geometric's download_url to add a simple binary
+    progress bar and optionally print the file size before starting.
     """
-    with tqdm(desc=f"Downloading to {folder}...", total=1, unit="file") as progress:
-        result = tg_download_url(url, folder, log)
-        progress.update(1)
+    # Try to fetch the file size
+    try:
+        info = urlopen(url).info() # urllibobject with .info() dict
+        file_size_mb = f"{int(info['Content-Length']) / (1024 * 1024):.2f} MB" if 'Content-Length' in info else "unknown"
+    except Exception as e:
+        file_size_mb = "unknown"
+
+    # Proceed with the original download logic
+    if log is True:
+        with tqdm(
+            desc=f"Downloading {filename if filename else url} (size: {file_size_mb})", 
+            total=1, 
+            ncols=100, 
+            unit="file"
+        ) as progress:
+            result = tg_download_url(url=url, folder=folder, log=False, filename=filename)
+            progress.update(1)
+    else:
+        result = tg_download_url(url=url, folder=folder, log=False, filename=filename)
+
     return result
 
 
@@ -23,7 +40,7 @@ def process_single_dataset(args):
     source, transform, smooth_method, interpolate_method, resample_dt, kwargs = args
     try:
         logger.info(f"Start processing {source}.")
-        # Instantiate the relevant preprocessor class
+        # Instantiate the relevant preprocessor class (dynamic class evaluation)
         preprocessor = eval(source + "Preprocessor")(
             transform,
             smooth_method,
@@ -98,6 +115,7 @@ def pickle_neural_data(
     # If .zip not found in the root directory, download the curated open-source worm datasets
     if not os.path.exists(source_path):
         try:
+            # downloads opensource_neural_data
             download_url_with_progress(url=url, folder=ROOT_DIR, filename=zipfile)
         except Exception as e:
             logger.error(f"Failed to download using async method: {e}")
@@ -153,7 +171,7 @@ def pickle_neural_data(
         with Pool(processes=n_workers) as pool:
             results = pool.map(process_single_dataset, process_args)
 
-        # Create a file to indicate that the preprocessing was successful
+        # Create .processed file to indicate that some preprocessing was successful
         if any(results):  # If at least one dataset was processed successfully
             open(os.path.join(processed_path, ".processed"), "a").close()
 
@@ -2359,7 +2377,7 @@ class NeuralBasePreprocessor:
         self.interpolate_method = interpolate_method
         self.resample_dt = resample_dt
         self.smooth_kwargs = kwargs
-        self.raw_data_path = os.path.join(ROOT_DIR, "opensource_data")
+        self.raw_data_path = os.path.join(ROOT_DIR, "opensource_neural_data")
         self.processed_data_path = os.path.join(ROOT_DIR, "data/processed/neural")
 
     def smooth_data(self, data, time_in_seconds):

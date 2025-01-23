@@ -31,8 +31,8 @@ def process_data(config: dict) -> None:
             sigma=config["smooth"]["sigma"],
         )
         pickle_neural_data(
-            url=config["opensource_url"],
-            zipfile=config["opensource_zipfile"],
+            url=config["opensource_neural_url"],
+            zipfile=config["opensource_neural_zipfile"],
             source_dataset=config["source_dataset"],
             smooth_method=config["smooth"]["method"],
             resample_dt=config["resample_dt"],
@@ -44,28 +44,10 @@ def process_data(config: dict) -> None:
     else:
         logger.info("Neural data already preprocessed.")
 
-    # Extract presaved commonly used neural dataset split patterns
-    if not os.path.exists(os.path.join(ROOT_DIR, "data/datasets")):
-        logger.info("Extracting presaved dataset patterns.")
-        get_presaved_datasets(
-            url=config["presaved_url"], file=config["presaved_file"]
-        )
-        logger.info("Done extracting presaved dataset patterns.")
-    else:
-        logger.info("Presaved dataset patterns already extracted.")
-
-    # Preprocess the connectome data if not already done
-    if not os.path.exists(os.path.join(ROOT_DIR, "data/processed/connectome/.processed")):
-        logger.info("Preprocessing C. elegans connectome data ...")
-        preprocess_connectome(
-            raw_files=RAW_FILES, source_connectome=config["connectome_pub"]
-        )
-        logger.info("Finished preprocessing connectome.")
-    else:
-        logger.info("Connectome already preprocessed.")
     return None
 
 
+# Identical to running `python preprocess.py`
 if __name__ == "__main__":
     print("Configuration:", json.dumps(PREPROCESS_CONFIG, indent=2), end="\n\n")
     process_data(PREPROCESS_CONFIG)

@@ -10,6 +10,7 @@ import zipfile
 import logging
 import subprocess
 import multiprocessing
+from urllib.request import urlopen
 import numpy as np
 import pandas as pd
 from tqdm import tqdm
