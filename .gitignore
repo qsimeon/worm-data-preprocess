@@ -1,0 +1,78 @@
+# Downloaded datasets
+data/opensource_neural_data/
+*.zip
+data/datasets/
+data/raw/
+data/processed/
+
+
+# Mac
+.DS_Store
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg
+*.egg-info
+dist
+build
+.tox
+.nox
+.coverage
+.cache
+nosetests.xml
+coverage.xml
+*.egg-info
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+instance
+.mypy_cache
+.pytest_cache
+
+# PyInstaller
+#  Usually unnecessary, but commented out just in case
+# dist/
+# build/
+
+# PyBuilder
+target/
+
+# PEP 582; used by e.g. github.com/David-OConnor/py_odm
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+pyvenv.cfg
+
+# Spyder project settings
+.pydevproject
+.project
+.ropeproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
