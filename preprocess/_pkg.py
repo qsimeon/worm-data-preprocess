@@ -47,5 +47,5 @@ from preprocess.config import PREPROCESS_CONFIG
 EXPERIMENT_DATASETS = PREPROCESS_CONFIG['EXPERIMENT_DATASETS'] # explicit so imports continue to work
 
 # Configure the logger
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%d %H:%M:%S')
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%H:%M:%S')
 logger = logging.getLogger('preprocess')

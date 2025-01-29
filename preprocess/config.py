@@ -33,8 +33,8 @@ PREPROCESS_CONFIG = {
     
     # Whether to delete downloaded data after processing
     "cleanup": False,
-    # Elect to use multithreading (default True)
-    "use_multithreading": False,
+    # Elect to use multithreading (recommended: True)
+    "use_multithreading": True,
     # Dataset selection ('all' or specific dataset names)
     "source_dataset": "all",
     # Time interval in seconds for resampling neural activity

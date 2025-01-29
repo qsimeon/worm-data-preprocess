@@ -1,5 +1,7 @@
 from preprocess._utils import *
 
+import time
+
 
 def process_data(config: dict) -> None:
     """Preprocesses the raw neural and connectome data.
@@ -24,12 +26,14 @@ def process_data(config: dict) -> None:
 
     # Download and pickle the neural data if not already done
     if not os.path.exists(os.path.join(ROOT_DIR, "data/processed/neural/.processed")):
-        logger.info("Preprocessing C. elegans neural data...")
+        multithread_flag = "with multithreading" if config['use_multithreading'] else "sequentially"
+        logger.info(f"Preprocessing C. elegans neural data {multithread_flag} ({len(EXPERIMENT_DATASETS)} datasets)...")
         kwargs = dict(
             alpha=config["smooth"]["alpha"],
             window_size=config["smooth"]["window_size"],
             sigma=config["smooth"]["sigma"],
         )
+        start_time = time.time()
         pickle_neural_data(
             url=config["opensource_neural_url"],
             zipfile=config["opensource_neural_zipfile"],
@@ -41,8 +45,10 @@ def process_data(config: dict) -> None:
             use_multithreading=config['use_multithreading'],
             **kwargs,
         )
+        end_time = time.time()
+
         print("") # new line
-        logger.info("Finished preprocessing neural data.")
+        logger.info(f"Finished preprocessing neural data in {end_time - start_time:.2f} seconds.")
     else:
         logger.info("Neural data already preprocessed.")
 
