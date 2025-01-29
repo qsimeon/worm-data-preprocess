@@ -107,7 +107,7 @@ class Kato2015Preprocessor(NeuralBasePreprocessor):
             preprocessed_data[worm] = reshape_calcium_data(preprocessed_data[worm])
         # Save data
         self.save_data(preprocessed_data)
-        logger.info(f"Finished processing {self.source_dataset}.")
+        # logger.info(f"Finished processing {self.source_dataset}.")
         
 
 class Nichols2017Preprocessor(NeuralBasePreprocessor):
@@ -211,7 +211,7 @@ class Nichols2017Preprocessor(NeuralBasePreprocessor):
             preprocessed_data[worm] = reshape_calcium_data(preprocessed_data[worm])
         # Save data
         self.save_data(preprocessed_data)
-        logger.info(f"Finished processing {self.source_dataset}.")
+        # logger.info(f"Finished processing {self.source_dataset}.")
 
 
 class Skora2018Preprocessor(NeuralBasePreprocessor):
@@ -310,7 +310,7 @@ class Skora2018Preprocessor(NeuralBasePreprocessor):
             preprocessed_data[worm] = reshape_calcium_data(preprocessed_data[worm])
         # Save data
         self.save_data(preprocessed_data)
-        logger.info(f"Finished processing {self.source_dataset}.")
+        # logger.info(f"Finished processing {self.source_dataset}.")
 
 
 class Kaplan2020Preprocessor(NeuralBasePreprocessor):
@@ -428,7 +428,7 @@ class Kaplan2020Preprocessor(NeuralBasePreprocessor):
             preprocessed_data[worm] = reshape_calcium_data(preprocessed_data[worm])
         # Save data
         self.save_data(preprocessed_data)
-        logger.info(f"Finished processing {self.source_dataset}.")
+        # logger.info(f"Finished processing {self.source_dataset}.")
 
 
 class Nejatbakhsh2020Preprocessor(NeuralBasePreprocessor):
@@ -540,7 +540,7 @@ class Nejatbakhsh2020Preprocessor(NeuralBasePreprocessor):
         for worm in preprocessed_data.keys():
             preprocessed_data[worm] = reshape_calcium_data(preprocessed_data[worm])
         self.save_data(preprocessed_data)
-        logger.info(f"Finished processing {self.source_dataset}.")
+        # logger.info(f"Finished processing {self.source_dataset}.")
 
 
 class Yemini2021Preprocessor(NeuralBasePreprocessor):
@@ -754,7 +754,7 @@ class Yemini2021Preprocessor(NeuralBasePreprocessor):
             preprocessed_data[worm] = reshape_calcium_data(preprocessed_data[worm])
         # Save data
         self.save_data(preprocessed_data)
-        logger.info(f"Finished processing {self.source_dataset}.")
+        # logger.info(f"Finished processing {self.source_dataset}.")
 
 
 class Uzel2022Preprocessor(NeuralBasePreprocessor):
@@ -867,7 +867,7 @@ class Uzel2022Preprocessor(NeuralBasePreprocessor):
             preprocessed_data[worm] = reshape_calcium_data(preprocessed_data[worm])
         # Save data
         self.save_data(preprocessed_data)
-        logger.info(f"Finished processing {self.source_dataset}.")
+        # logger.info(f"Finished processing {self.source_dataset}.")
 
 
 class Dag2023Preprocessor(NeuralBasePreprocessor):
@@ -1076,7 +1076,7 @@ class Dag2023Preprocessor(NeuralBasePreprocessor):
             preprocessed_data[worm] = reshape_calcium_data(preprocessed_data[worm])
         # Save data
         self.save_data(preprocessed_data)
-        logger.info(f"Finished processing {self.source_dataset}.")
+        # logger.info(f"Finished processing {self.source_dataset}.")
         return None
 
 
@@ -1238,7 +1238,7 @@ class Flavell2023Preprocessor(NeuralBasePreprocessor):
             preprocessed_data[worm] = reshape_calcium_data(preprocessed_data[worm])
         # Save data
         self.save_data(preprocessed_data)
-        logger.info(f"Finished processing {self.source_dataset}.")
+        # logger.info(f"Finished processing {self.source_dataset}.")
 
 
 class Leifer2023Preprocessor(NeuralBasePreprocessor):
@@ -1506,7 +1506,7 @@ class Leifer2023Preprocessor(NeuralBasePreprocessor):
             preprocessed_data[worm] = reshape_calcium_data(preprocessed_data[worm])
         # Save data
         self.save_data(preprocessed_data)
-        logger.info(f"Finished processing {self.source_dataset}.")
+        # logger.info(f"Finished processing {self.source_dataset}.")
 
 
 class Lin2023Preprocessor(NeuralBasePreprocessor):
@@ -1643,7 +1643,7 @@ class Lin2023Preprocessor(NeuralBasePreprocessor):
             preprocessed_data[worm] = reshape_calcium_data(preprocessed_data[worm])
         # Save data
         self.save_data(preprocessed_data)
-        logger.info(f"Finished processing {self.source_dataset}.")
+        # logger.info(f"Finished processing {self.source_dataset}.")
 
 
 class Venkatachalam2024Preprocessor(NeuralBasePreprocessor):
@@ -1787,4 +1787,4 @@ class Venkatachalam2024Preprocessor(NeuralBasePreprocessor):
         for worm in preprocessed_data.keys():
             preprocessed_data[worm] = reshape_calcium_data(preprocessed_data[worm])
         self.save_data(preprocessed_data)
-        logger.info(f"Finished processing {self.source_dataset}.")
+        # logger.info(f"Finished processing {self.source_dataset}.")

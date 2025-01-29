@@ -51,6 +51,9 @@ def process_single_dataset(args):
         )
         # Call its method
         preprocessor.preprocess()
+        
+        logger.info(f"Finished processing {source}") # Test to see if we can just log finish afterwards
+        
         return True
     except NameError as e:
         logger.info(f"NameError calling preprocessor: {e}")
@@ -66,7 +69,8 @@ def pickle_neural_data(
     interpolate_method="linear",
     resample_dt=None,
     cleanup=False,
-    n_workers=None,  # New parameter for controlling number of workers
+    use_multithreading=True,
+    n_workers=None, 
     **kwargs,
 ):
     """Preprocess and save C. elegans neural data to .pickle format.
@@ -116,7 +120,7 @@ def pickle_neural_data(
     # If .zip not found in the root directory, download the curated open-source worm datasets
     if not os.path.exists(source_path):
         try:
-            # downloads opensource_neural_data
+            # downloads opensource_neural_data (eta 3:04)
             download_url_with_progress(url=url, folder=os.path.join(ROOT_DIR, "data"), filename=zipfile)
         except Exception as e:
             logger.error(f"Failed to download using async method: {e}")
@@ -158,19 +162,28 @@ def pickle_neural_data(
             os.unlink(zip_path)
     # (re)-Pickle all the datasets ... OR
     if source_dataset is None or source_dataset.lower() == "all":
-        # Determine number of workers (use CPU count - 1 by default)
+        # Determine number of workers (use CPU count - 1 by default if needed)
         if n_workers is None:
             n_workers = max(1, multiprocessing.cpu_count() - 1)
 
-        # Prepare arguments for parallel processing
+        # Prepare arguments for each dataset
+        # All datasets prepared using same smoothing, interpolation, and resampling
         process_args = [
             (source, transform, smooth_method, interpolate_method, resample_dt, kwargs)
             for source in EXPERIMENT_DATASETS
         ]
-
-        # Use multiprocessing Pool to process datasets in parallel
-        with Pool(processes=n_workers) as pool:
-            results = pool.map(process_single_dataset, process_args)
+        
+        # TODO: Time this execution
+        if use_multithreading:
+            # Use multiprocessing Pool to process datasets in parallel
+            with Pool(processes=n_workers) as pool:
+                results = pool.map(process_single_dataset, process_args)
+        else:
+            # Process datasets sequentially
+            results = []
+            for args in process_args:
+                results.append(process_single_dataset(args))
+        
 
         # Create .processed file to indicate that some preprocessing was successful
         if any(results):  # If at least one dataset was processed successfully

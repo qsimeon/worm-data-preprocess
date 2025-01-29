@@ -38,8 +38,10 @@ def process_data(config: dict) -> None:
             resample_dt=config["resample_dt"],
             interpolate_method=config["interpolate"],
             cleanup=config["cleanup"],
+            use_multithreading=config['use_multithreading'],
             **kwargs,
         )
+        print("") # new line
         logger.info("Finished preprocessing neural data.")
     else:
         logger.info("Neural data already preprocessed.")

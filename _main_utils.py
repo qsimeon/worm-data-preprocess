@@ -146,7 +146,8 @@ def init_device():
 # Get GPU if available
 DEVICE = init_device()
 
-# Set of real C. elegans datasets we have processed
+# Set of real C. elegans datasets we have created processors for and will be
+# processed running `preprocess.py`
 EXPERIMENT_DATASETS = {
     "Kato2015",
     "Nichols2017",
