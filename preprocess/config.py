@@ -4,6 +4,22 @@ PREPROCESS_CONFIG = {
     "opensource_neural_url": "https://www.dropbox.com/scl/fi/vfygz1twi1jg62cfssc0w/opensource_data.zip?rlkey=qa4vpwcoza3k9v5o2watwblth&dl=1",
     # Local filename for downloaded opensource neural data
     "opensource_neural_zipfile": "opensource_neural_data.zip",
+    # Set of real C. elegans datasets with custom processors
+    # Select datasets to process with list indexing
+    "EXPERIMENT_DATASETS" : [
+        "Kato2015",
+        "Nichols2017",
+        "Skora2018",
+        "Kaplan2020",
+        "Nejatbakhsh2020",
+        "Yemini2021",
+        "Uzel2022",
+        "Dag2023",
+        "Leifer2023",  # Different type of dataset: stimulus-response.
+        "Lin2023",
+        "Flavell2023",  # TODO: Something is wrong with worm0 in this dataset. Specifically, "worm0" is always absent. Why?
+        "Venkatachalam2024",  # This is unpublished data. Downloaded from chemosensory-data.worm.world/.
+    ][0:],
     
     ## PREPROCESSED DATA (for training models)
     # URL to download pre-processed datasets

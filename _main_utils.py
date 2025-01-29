@@ -146,23 +146,6 @@ def init_device():
 # Get GPU if available
 DEVICE = init_device()
 
-# Set of real C. elegans datasets we have created processors for and will be
-# processed running `preprocess.py`
-EXPERIMENT_DATASETS = {
-    "Kato2015",
-    "Nichols2017",
-    "Skora2018",
-    "Kaplan2020",
-    "Nejatbakhsh2020",
-    "Yemini2021",
-    "Uzel2022",
-    "Dag2023",
-    "Leifer2023",  # Different type of dataset: stimulus-response.
-    "Lin2023",
-    "Flavell2023",  # TODO: Something is wrong with worm0 in this dataset. Specifically, "worm0" is always absent. Why?
-    "Venkatachalam2024",  # This is unpublished data. Downloaded from chemosensory-data.worm.world/.
-}
-
 
 # Method for globally setting all random seeds
 def init_random_seeds(seed=0):
