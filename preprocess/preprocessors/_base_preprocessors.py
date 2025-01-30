@@ -715,7 +715,7 @@ class NeuralBasePreprocessor:
         Returns:
             dict: The loaded data.
         """
-        return mat73.loadmat(os.path.join(self.raw_data_path, self.source_dataset, file_name))
+        return mat73.loadmat(os.path.join(self.raw_data_path, self.source_dataset, file_name), verbose=False)
 
     def extract_data(self):
         """

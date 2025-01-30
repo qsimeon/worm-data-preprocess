@@ -356,7 +356,7 @@ class Kaplan2020Preprocessor(NeuralBasePreprocessor):
             dict: The loaded data as a dictionary.
         """
         # Load data with mat73
-        data = mat73.loadmat(os.path.join(self.raw_data_path, self.source_dataset, file_name))
+        data = mat73.loadmat(os.path.join(self.raw_data_path, self.source_dataset, file_name), verbose=False)
         return data
 
     def extract_data(self, arr):
@@ -797,7 +797,7 @@ class Uzel2022Preprocessor(NeuralBasePreprocessor):
             dict: The loaded data as a dictionary.
         """
         # Load data with mat73
-        return mat73.loadmat(os.path.join(self.raw_data_path, self.source_dataset, file_name))
+        return mat73.loadmat(os.path.join(self.raw_data_path, self.source_dataset, file_name), verbose=False)
 
     def extract_data(self, arr):
         """
