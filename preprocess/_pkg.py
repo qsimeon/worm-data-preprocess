@@ -46,6 +46,11 @@ from _main_utils import (
 from preprocess.config import PREPROCESS_CONFIG
 EXPERIMENT_DATASETS = PREPROCESS_CONFIG['EXPERIMENT_DATASETS'] # explicit so imports continue to work
 
-# Configure the logger
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%H:%M:%S')
-logger = logging.getLogger('preprocess')
+# # Configure logger
+# logging.basicConfig(
+#     level=logging.INFO,
+#     format='%(asctime)s - %(name) - %(levelname)s - %(message)s',
+#     datefmt='%H:%M:%S'
+# )
+# # Create a logger for each module
+logger = logging.getLogger(__name__)

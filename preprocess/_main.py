@@ -1,4 +1,4 @@
-from preprocess._utils import *
+from preprocess._utils import os, logger, ROOT_DIR, EXPERIMENT_DATASETS, pickle_neural_data
 
 import time
 
@@ -21,8 +21,6 @@ def process_data(config: dict) -> None:
     pickle_neural_data : function in preprocess/_utils.py
     preprocess_connectome : function in preprocess/_utils.py
     """
-    # Initialize the logger
-    logger = logging.getLogger(__name__)
 
     # Download and pickle the neural data if not already done
     if not os.path.exists(os.path.join(ROOT_DIR, "data/processed/neural/.processed")):

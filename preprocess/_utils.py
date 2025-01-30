@@ -1,8 +1,53 @@
-from preprocess._pkg import *
-from preprocess.preprocessors._base_preprocessors import *
-from preprocess.preprocessors._neural import *
-from preprocess.preprocessors._connectome import *
+from preprocess._pkg import (
+    os,
+    shutil,
+    zipfile,
+    logger,
+    multiprocessing,
+    Pool,
+    urlopen,
+    tqdm,
+    tg_download_url,
+    StandardScaler,
+    RAW_ZIP,
+    ROOT_DIR,
+    RAW_DATA_URL,
+    RAW_DATA_DIR,
+    EXPERIMENT_DATASETS,
+)
+ 
+from preprocess.preprocessors._base_preprocessors import DefaultPreprocessor
 
+# used dynamically in process_single_dataset, hence why linter marks them as 'unused'
+from preprocess.preprocessors._neural import (
+    Kato2015Preprocessor,
+    Nichols2017Preprocessor,
+    Skora2018Preprocessor,
+    Kaplan2020Preprocessor,
+    Nejatbakhsh2020Preprocessor,
+    Yemini2021Preprocessor,
+    Uzel2022Preprocessor,
+    Dag2023Preprocessor,
+    Flavell2023Preprocessor,
+    Leifer2023Preprocessor,
+    Lin2023Preprocessor,
+    Venkatachalam2024Preprocessor,
+)
+
+from preprocess.preprocessors._connectome import (
+    ChklovskiiPreprocessor,
+    OpenWormPreprocessor,
+    Randi2023Preprocessor,
+    Witvliet2020Preprocessor7,
+    Witvliet2020Preprocessor8,
+    Cook2019Preprocessor,
+    White1986WholePreprocessor,
+    White1986N2UPreprocessor,
+    White1986JSHPreprocessor,
+    White1986JSEPreprocessor,
+)
+
+# --------------------------------------------------
 
 def download_url_with_progress(url, folder, log=True, filename=None):
     """
@@ -355,5 +400,3 @@ def extract_zip(path: str, folder: str = None, log: bool = True, delete_zip: boo
         os.unlink(path)
 
 
-
-# # # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#

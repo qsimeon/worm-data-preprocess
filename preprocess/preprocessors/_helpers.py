@@ -3,7 +3,7 @@ Contains specific modules that help in preprocessing the data,
 such as common calcium trace data transformations, necessary for the 
 base and specific preprocessors.
 """
-from preprocess._pkg import *
+from preprocess._pkg import torch, np, pd, interp1d, NEURON_LABELS, logger, NUM_NEURONS
 
 ###############################################################################################
 # TODO: Encapsulate smoothing functions in OOP style class.

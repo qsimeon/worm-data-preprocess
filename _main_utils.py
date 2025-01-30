@@ -146,7 +146,6 @@ def init_device():
 # Get GPU if available
 DEVICE = init_device()
 
-
 # Method for globally setting all random seeds
 def init_random_seeds(seed=0):
     """

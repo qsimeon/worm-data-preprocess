@@ -1,4 +1,5 @@
-from preprocess._main import process_data, PREPROCESS_CONFIG, json
+from preprocess._main import process_data
+from preprocess._pkg import PREPROCESS_CONFIG, json
 import argparse
 
 if __name__ == "__main__":
