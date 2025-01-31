@@ -55,7 +55,7 @@ elif os.path.exists(labels_file):
     )
 else:
     # Enumarte all the labels manually (once) and save them to a text file
-    print(f"Saving to {labels_file}.\n")
+    # print(f"Saving to {labels_file}.\n")
     # fmt: off
     NEURON_LABELS = [ 
             # References: (1) https://www.wormatlas.org/neurons/Individual%20Neurons/Neuronframeset.html 
@@ -154,9 +154,6 @@ def init_device():
         device = torch.device("cpu")
     return device
 
-# Get GPU if available
-DEVICE = init_device()
-
 # Method for globally setting all random seeds
 def init_random_seeds(seed=0):
     """
@@ -170,3 +167,9 @@ def init_random_seeds(seed=0):
         torch.cuda.manual_seed_all(seed)
         torch.backends.cudnn.deterministic = True
     return None
+
+
+# won't be called at import time
+if __name__ == "__main__":
+    # can import init_device() or DEVICE if needed for processing in future
+    DEVICE = init_device()
