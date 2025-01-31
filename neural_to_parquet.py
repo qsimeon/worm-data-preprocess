@@ -53,7 +53,6 @@ def process_worm_datasets(datasets):
                 slot = np.intc(slot)
                 dataset_name = dataset[worm]["source_dataset"]
                 raw_data_file = dataset[worm]["extra_info"]["data_file"]
-                # TODO: All smooth methods are currently "none" 
                 smooth_method = dataset[worm]["smooth_method"]
                 smooth_method = "no smoothing" if smooth_method is None else smooth_method.lower()
                 interpolate_method = dataset[worm]["interpolate_method"]
@@ -126,22 +125,19 @@ def main():
     
     datasets = load_all_worm_datasets()
     df = process_worm_datasets(datasets)
-    
-    # # prints only "none" for all 42811 rows 
-    # print(f"Number of rows in the dataframe: {len(df)}")
-    # print("Most frequently occurring smooth methods:")
-    # print(df['smooth_method'].value_counts().head())
 
     # Save to parquet
     os.makedirs(os.path.join(ROOT_DIR, "datasets"), exist_ok=True)
     parquet_filename = "processed_worm_data_short.parquet"
     parquet_path = os.path.join(ROOT_DIR, "datasets", parquet_filename)
-    if not os.path.exists(parquet_path):
-        print(f"Saving processed data to datasets/{parquet_filename}...")
-        df.to_parquet(parquet_path, index=False, engine="pyarrow")
-        print(f"Processed data saved to datasets/{parquet_filename}")
-    else:
-        print(f"File datasets/{parquet_filename} already exists. Skipping save.")
+    if os.path.exists(parquet_path):
+        overwrite = input(f"File datasets/{parquet_filename} already exists. Would you like to overwrite it? (yes/no): ").strip().lower()
+        if overwrite != 'yes':
+            print("Skipping save.")
+            return
+    print(f"Saving processed data to datasets/{parquet_filename}...")
+    df.to_parquet(parquet_path, index=False, engine="pyarrow")
+    print(f"Processed data saved to datasets/{parquet_filename}")
     
     # Visualize the dataset (requires matplotlib)
     # visualize_data(df)

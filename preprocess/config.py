@@ -43,8 +43,8 @@ PREPROCESS_CONFIG = {
     "interpolate": "linear",
     # Signal smoothing parameters
     "smooth": {
-        # Smoothing method (none/gaussian/exponential/moving)
-        "method": "none",
+        # Smoothing method (none/gaussian/exponential/moving). none is fastest
+        "method": "moving",
         # Exponential smoothing factor (smaller = smoother)
         "alpha": 0.5,
         # Gaussian kernel width (larger = smoother)
