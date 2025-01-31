@@ -125,6 +125,17 @@ RAW_FILES = [
     # NOTE: "neuron_master_sheet.csv", once complete, should make the following files obsolete: "neuron_labels.txt", ""Witvliet2020_NeuronClasses.xlsx", "LowResAtlasWithHighResHeadsAndTails.csv", "Hobert2016_BrainAtlas.xlsx"
 ]
 
+# Datasets created with the (no longer existing, but in worm-graph)
+# `CreateSyntheticDataset.ipynb` notebook.
+SYNTHETIC_DATASETS = {  
+    "Sines0000",
+    "Lorenz0000",
+    "WhiteNoise0000",
+    "RandWalk0000",
+    "VanDerPol0000",
+    "Wikitext0000",
+}
+
 # Select correct device for torch
 def init_device():
     """

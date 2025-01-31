@@ -4,6 +4,7 @@ data/opensource_neural_data/
 data/datasets/
 data/raw/
 data/processed/
+datasets/
 
 
 # Mac
