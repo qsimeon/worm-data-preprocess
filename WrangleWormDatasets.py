@@ -1,9 +1,5 @@
-"""
-Converts preprocessed neural dataset files into a parquet file that can be 
-uploaded and viewed on HuggingFace.
-"""
-
 import os
+import torch
 import scipy.stats
 import numpy as np
 import pandas as pd
@@ -22,32 +18,31 @@ from preprocess.config import PREPROCESS_CONFIG
 EXPERIMENT_DATASETS = PREPROCESS_CONFIG["EXPERIMENT_DATASETS"]
 
 
-def all_zeros(lst):
-    """Check if all values in a list are 0.0."""
-    return all(val == 0.0 for val in lst)
-
 def load_dataset(name):
-    """Load a specified neural dataset's pickle file by name"""
+    """Load a specified dataset by name."""
+    print(f"Loading dataset: {name}")
     assert (name in EXPERIMENT_DATASETS) or (name in SYNTHETIC_DATASETS), "Unrecognized dataset!"
     file = os.path.join(ROOT_DIR, "data", "processed", "neural", f"{name}.pickle")
     assert os.path.exists(file), f"The file {file} does not exist."
     with open(file, "rb") as pickle_in:
         return pickle.load(pickle_in)
 
+def all_zeros(lst):
+    """Check if all values in a list are 0.0."""
+    return all(val == 0.0 for val in lst)
+
 def load_all_worm_datasets():
-    """Load all neural datasets and return a list of them"""
+    """Load all worm datasets and return a list of datasets."""
     print("Loading all worm datasets...")
-    return [load_dataset(dataset) for dataset in EXPERIMENT_DATASETS]
+    return [load_dataset(dataset) for dataset in tqdm(EXPERIMENT_DATASETS)]
 
 def process_worm_datasets(datasets):
-    """Process worm datasets and return a DataFrame with extracted information"""
+    """Process worm datasets and return a DataFrame with extracted information."""
     print("Processing worm datasets...")
     data_dict = {}
-    progress_bar = tqdm(datasets)
 
-    for dataset in progress_bar:
+    for dataset in tqdm(datasets, desc="Datasets"):
         for worm in dataset:
-            progress_bar.set_description(f"Processing {dataset[worm]['source_dataset']}")
             for neuron, slot in dataset[worm]["neuron_to_slot"].items():
                 slot = np.intc(slot)
                 dataset_name = dataset[worm]["source_dataset"]
@@ -111,15 +106,15 @@ def process_worm_datasets(datasets):
     print("Processing complete.")
     return df
 
-# # Requires matplotlib to be installed
 # def visualize_data(df):
-#     """Generate a heatmap visualization of the processed dataset"""
+#     """Generate a heatmap visualization of the processed dataset."""
 #     plt.figure(figsize=(10, 6))
 #     sns.heatmap(df.corr(), annot=True, cmap='coolwarm', fmt=".2f")
 #     plt.title("Correlation Heatmap of Worm Dataset")
 #     plt.show()
 
 def main():
+    """Main function to load, process, and visualize worm datasets."""
     init_random_seeds(42)
     
     datasets = load_all_worm_datasets()
@@ -129,10 +124,6 @@ def main():
     os.makedirs(os.path.join(ROOT_DIR, "datasets"), exist_ok=True)
     parquet_filename = "processed_worm_data_short.parquet"
     parquet_path = os.path.join(ROOT_DIR, "datasets", parquet_filename)
-    if os.path.exists(parquet_path):
-        overwrite = input(f"File datasets/{parquet_filename} already exists. Would you like to overwrite it? (yes/no): ").strip().lower()
-        if overwrite != 'yes':
-            return
     print(f"Saving processed data to datasets/{parquet_filename}...")
     df.to_parquet(parquet_path, index=False, engine="pyarrow")
     print(f"Processed data saved to datasets/{parquet_filename}")

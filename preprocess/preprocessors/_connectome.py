@@ -6,7 +6,194 @@ Count: 10
 """
 from preprocess._pkg import *
 from preprocess.preprocessors._helpers import *
-from preprocess.preprocessors._base_preprocessors import ConnectomeBasePreprocessor, DefaultPreprocessor
+from preprocess.preprocessors._base_preprocessors import ConnectomeBasePreprocessor
+
+
+
+class DefaultPreprocessor(ConnectomeBasePreprocessor):
+    """
+    Default preprocessor for connectome data.
+
+    This class extends the ConnectomeBasePreprocessor to provide specific preprocessing
+    steps for the default connectome data. It includes methods for loading, processing,
+    and saving the connectome data.
+
+    The default connectome data used here is a MATLAB preprocessed version of Cook et al., 2019 by
+    Kamal Premaratne. If the raw data isn't found, please download the zip file from this link:
+    https://wormwiring.org/matlab%20scripts/Premaratne%20MATLAB-ready%20files%20.zip,
+    unzip the archive in the data/raw folder, then run the MATLAB script `export_nodes_edges.m`.
+
+    Methods:
+        preprocess(save_as="graph_tensors.pt"):
+            Preprocesses the connectome data and saves the graph tensors to a file.
+    """
+
+    def preprocess(self, save_as="graph_tensors.pt"):
+        """
+        Preprocesses the connectome data and saves the graph tensors to a file.
+
+        The data is read from multiple CSV files named "GHermChem_Edges.csv",
+        "GHermChem_Nodes.csv", "GHermGap_Edges.csv", and "GHermGap_Nodes.csv".
+
+        Args:
+            save_as (str, optional): The name of the file to save the graph tensors to. Default is "graph_tensors.pt".
+
+        Steps:
+            1. Load the chemical synapse edges and nodes from "GHermChem_Edges.csv" and "GHermChem_Nodes.csv".
+            2. Load the electrical synapse edges and nodes from "GHermGap_Edges.csv" and "GHermGap_Nodes.csv".
+            3. Initialize sets for all C. elegans hermaphrodite neurons.
+            4. Process the chemical synapse edges and nodes:
+                - Filter edges and nodes based on neuron labels.
+                - Append edges and attributes to the respective lists.
+            5. Process the electrical synapse edges and nodes:
+                - Filter edges and nodes based on neuron labels.
+                - Append edges and attributes to the respective lists.
+            6. Convert edge attributes and edge indices to tensors.
+            7. Call the `preprocess_common_tasks` method to perform common preprocessing tasks.
+            8. Save the graph tensors to the specified file.
+        """
+        # # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+        # # Override DefaultProprecessor with Witvliet2020Preprocessor7, a more up-to-date connectome of C. elegans.
+        # return Witvliet2020Preprocessor7.preprocess(self, save_as="graph_tensors.pt")
+        # # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
+        # Names of all C. elegans hermaphrodite neurons
+        neurons_all = set(self.neuron_labels)
+        sep = r"[\t,]"
+
+        # Chemical synapses nodes and edges
+        GHermChem_Edges = pd.read_csv(
+            os.path.join(RAW_DATA_DIR, "GHermChem_Edges.csv"), sep=sep
+        )  # edges
+        GHermChem_Nodes = pd.read_csv(
+            os.path.join(RAW_DATA_DIR, "GHermChem_Nodes.csv"), sep=sep
+        )  # nodes
+
+        # Gap junctions
+        GHermElec_Sym_Edges = pd.read_csv(
+            os.path.join(RAW_DATA_DIR, "GHermElec_Sym_Edges.csv"), sep=sep
+        )  # edges
+        GHermElec_Sym_Nodes = pd.read_csv(
+            os.path.join(RAW_DATA_DIR, "GHermElec_Sym_Nodes.csv"), sep=sep
+        )  # nodes
+
+        # Neurons involved in gap junctions
+        df = GHermElec_Sym_Nodes
+        df["Name"] = [
+            v.replace("0", "") if not v.endswith("0") else v for v in df["Name"]
+        ]  # standard naming
+        Ggap_nodes = (
+            df[df["Name"].isin(neurons_all)].sort_values(by=["Name"]).reset_index()
+        )  # filter out non-neurons
+
+        # Neurons (i.e. nodes) in chemical synapses
+        df = GHermChem_Nodes
+        df["Name"] = [
+            v.replace("0", "") if not v.endswith("0") else v for v in df["Name"]
+        ]  # standard naming
+        Gsyn_nodes = (
+            df[df["Name"].isin(neurons_all)].sort_values(by=["Name"]).reset_index()
+        )  # filter out non-neurons
+
+        # Gap junctions edges
+        df = GHermElec_Sym_Edges
+        df["EndNodes_1"] = [
+            v.replace("0", "") if not v.endswith("0") else v for v in df["EndNodes_1"]
+        ]
+        df["EndNodes_2"] = [
+            v.replace("0", "") if not v.endswith("0") else v for v in df["EndNodes_2"]
+        ]
+        inds = [
+            i
+            for i in GHermElec_Sym_Edges.index
+            if df.iloc[i]["EndNodes_1"] in set(Ggap_nodes.Name)
+            and df.iloc[i]["EndNodes_2"] in set(Ggap_nodes.Name)
+        ]  # indices
+        Ggap_edges = df.iloc[inds].reset_index(drop=True)
+
+        # Chemical synapses
+        df = GHermChem_Edges
+        df["EndNodes_1"] = [
+            v.replace("0", "") if not v.endswith("0") else v for v in df["EndNodes_1"]
+        ]
+        df["EndNodes_2"] = [
+            v.replace("0", "") if not v.endswith("0") else v for v in df["EndNodes_2"]
+        ]
+        inds = [
+            i
+            for i in GHermChem_Edges.index
+            if df.iloc[i]["EndNodes_1"] in set(Gsyn_nodes.Name)
+            and df.iloc[i]["EndNodes_2"] in set(Gsyn_nodes.Name)
+        ]  # indices
+        Gsyn_edges = df.iloc[inds].reset_index(drop=True)
+
+        # Map neuron names (IDs) to indices
+        neuron_to_idx = dict(zip(self.neuron_labels, range(len(self.neuron_labels))))
+
+        # edge_index for gap junctions
+        arr = Ggap_edges[["EndNodes_1", "EndNodes_2"]].values
+        ggap_edge_index = torch.empty(*arr.shape, dtype=torch.long)
+        for i, row in enumerate(arr):
+            ggap_edge_index[i, :] = torch.tensor([neuron_to_idx[x] for x in row], dtype=torch.long)
+        ggap_edge_index = ggap_edge_index.T  # [2, num_edges]
+        # Do the reverse direction to ensure symmetry of gap junctions
+        ggap_edge_index = torch.hstack((ggap_edge_index, ggap_edge_index[[1, 0], :]))
+
+        # edge_index for chemical synapses
+        arr = Gsyn_edges[["EndNodes_1", "EndNodes_2"]].values
+        gsyn_edge_index = torch.empty(*arr.shape, dtype=torch.long)
+        for i, row in enumerate(arr):
+            gsyn_edge_index[i, :] = torch.tensor([neuron_to_idx[x] for x in row], dtype=torch.long)
+        gsyn_edge_index = gsyn_edge_index.T  # [2, num_edges]
+
+        # edge attributes
+        # NOTE: The first feature represents the weight of the gap junctions;
+        # The second feature represents the weight of the chemical synapses.
+        num_edge_features = 2
+
+        # edge_attr for gap junctions
+        num_edges = len(Ggap_edges)
+        ggap_edge_attr = torch.empty(
+            num_edges, num_edge_features, dtype=torch.float
+        )  # [num_edges, num_edge_features]
+        for i, weight in enumerate(Ggap_edges.Weight.values):
+            ggap_edge_attr[i, :] = torch.tensor(
+                [weight, 0], dtype=torch.float
+            )  # electrical synapse encoded as [1,0]
+        # Do the reverse direction to ensure symmetry of gap junctions
+        ggap_edge_attr = torch.vstack((ggap_edge_attr, ggap_edge_attr))
+
+        # edge_attr for chemical synapses
+        num_edges = len(Gsyn_edges)
+        gsyn_edge_attr = torch.empty(
+            num_edges, num_edge_features, dtype=torch.float
+        )  # [num_edges, num_edge_features]
+        for i, weight in enumerate(Gsyn_edges.Weight.values):
+            gsyn_edge_attr[i, :] = torch.tensor(
+                [0, weight], dtype=torch.float
+            )  # chemical synapse encoded as [0,1]
+
+        # Merge electrical and chemical graphs into a single connectome graph
+        combined_edge_index = torch.hstack((ggap_edge_index, gsyn_edge_index))
+        combined_edge_attr = torch.vstack((ggap_edge_attr, gsyn_edge_attr))
+        edge_index, edge_attr = coalesce(
+            combined_edge_index, combined_edge_attr, reduce="add"
+        )  # features = [elec_wt, chem_wt]
+
+        # Perform common preprocessing tasks to create graph tensors
+        graph, node_type, node_label, node_index, node_class, num_classes = (
+            self.preprocess_common_tasks(edge_index, edge_attr)
+        )
+
+        # Save the processed graph tensors to the specified file
+        self.save_graph_tensors(
+            save_as,
+            graph,
+            node_type,
+            node_label,
+            node_index,
+            node_class,
+            num_classes,
+        )
 
 
 class ChklovskiiPreprocessor(ConnectomeBasePreprocessor):

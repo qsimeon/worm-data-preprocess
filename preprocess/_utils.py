@@ -15,8 +15,6 @@ from preprocess._pkg import (
     RAW_DATA_DIR,
     EXPERIMENT_DATASETS,
 )
- 
-from preprocess.preprocessors._base_preprocessors import DefaultPreprocessor
 
 # used dynamically in process_single_dataset, hence why linter marks them as 'unused'
 from preprocess.preprocessors._neural import (
@@ -35,6 +33,7 @@ from preprocess.preprocessors._neural import (
 )
 
 from preprocess.preprocessors._connectome import (
+    DefaultPreprocessor,
     ChklovskiiPreprocessor,
     OpenWormPreprocessor,
     Randi2023Preprocessor,
@@ -218,7 +217,6 @@ def pickle_neural_data(
             for source in EXPERIMENT_DATASETS
         ]
         
-        # TODO: Time this execution
         if use_multithreading:
             # Use multiprocessing Pool to process datasets in parallel
             with Pool(processes=n_workers) as pool:
