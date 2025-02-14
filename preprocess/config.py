@@ -7,10 +7,10 @@ PREPROCESS_CONFIG = {
     # Set of real C. elegans datasets with custom processors
     # Select datasets to process with list indexing
     "EXPERIMENT_DATASETS" : [
-        "Kato2015",
-        "Nichols2017",
-        "Skora2018",
-        "Kaplan2020",
+        "Kato2015", # 53s
+        "Nichols2017", # 250s
+        "Skora2018", # 50s
+        "Kaplan2020", # 116s
         "Nejatbakhsh2020",
         "Yemini2021",
         "Uzel2022",
@@ -19,7 +19,7 @@ PREPROCESS_CONFIG = {
         "Lin2023",
         "Flavell2023",  # TODO: Something is wrong with worm0 in this dataset. Specifically, "worm0" is always absent. Why?
         "Venkatachalam2024",  # This is unpublished data. Downloaded from chemosensory-data.worm.world/.
-    ][:],
+    ][2:3],
     
     ## PREPROCESSED DATA (for training models)
     # URL to download pre-processed datasets
@@ -34,7 +34,7 @@ PREPROCESS_CONFIG = {
     # Whether to delete downloaded data after processing
     "cleanup": False,
     # Elect to use multithreading (recommended: True)
-    "use_multithreading": True,
+    "use_multithreading": False,
     # Dataset selection ('all' or specific dataset names)
     "source_dataset": "all",
     # Time interval in seconds for resampling neural activity
@@ -51,5 +51,9 @@ PREPROCESS_CONFIG = {
         "sigma": 5,
         # Moving average window size (larger = smoother)
         "window_size": 15
-    }
+    },
+    # Type of normalization transformation used (causal/standard)
+    "norm_transform": "causal", 
+    # Whether or not to normalize the data before resampling or vice versa (for NeuralBaseProcessor.process_traces)
+    "normalize_first": False,
 }

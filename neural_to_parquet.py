@@ -58,6 +58,10 @@ def process_worm_datasets(datasets):
 
                 original_calcium_data = dataset[worm]["original_calcium_data"][:, slot].numpy().astype(np.float32)
                 calcium_data = dataset[worm]["calcium_data"][:, slot].numpy().astype(np.float32)
+                
+                if "cumulative_mean" in dataset[worm]:
+                    cumulative_mean = dataset[worm]["cumulative_mean"][:, slot].numpy().astype(np.float32)
+                    cumulative_std = dataset[worm]["cumulative_std"][:, slot].numpy().astype(np.float32)
 
                 if all_zeros(calcium_data):
                     continue
@@ -90,6 +94,10 @@ def process_worm_datasets(datasets):
                 data_dict.setdefault("is_unlabeled_neuron", []).append(is_unlabeled_neuron)
                 data_dict.setdefault("original_calcium_data", []).append(original_calcium_data)
                 data_dict.setdefault("calcium_data", []).append(calcium_data)
+                
+                data_dict.setdefault("cumulative_mean", []).append(cumulative_mean)
+                data_dict.setdefault("cumulative_std", []).append(cumulative_std)
+                
                 data_dict.setdefault("original_smooth_calcium_data", []).append(original_smooth_calcium_data)
                 data_dict.setdefault("smooth_calcium_data", []).append(smooth_calcium_data)
                 data_dict.setdefault("original_residual_calcium", []).append(original_residual_calcium)
@@ -106,6 +114,11 @@ def process_worm_datasets(datasets):
                 data_dict.setdefault("median_dt", []).append(median_dt)
                 data_dict.setdefault("original_max_timesteps", []).append(original_max_timesteps)
                 data_dict.setdefault("max_timesteps", []).append(max_timesteps)
+
+                # Add cumulative data if we used CausalNormalizer to transform
+                if "cumulative_mean" in dataset[worm]:
+                    data_dict.setdefault("cumulative_mean", []).append(cumulative_mean)
+                    data_dict.setdefault("cumulative_std", []).append(cumulative_std)
 
     df = pd.DataFrame.from_dict(data_dict)
     print("Processing complete.")
@@ -125,17 +138,23 @@ def main():
     datasets = load_all_worm_datasets()
     df = process_worm_datasets(datasets)
 
-    # Save to parquet
+    # Save to parquet and csv (for viewing locally)
     os.makedirs(os.path.join(ROOT_DIR, "datasets"), exist_ok=True)
     parquet_filename = "processed_worm_data_short.parquet"
+    csv_filename = "processed_worm_data_short.csv"
     parquet_path = os.path.join(ROOT_DIR, "datasets", parquet_filename)
-    if os.path.exists(parquet_path):
-        overwrite = input(f"File datasets/{parquet_filename} already exists. Would you like to overwrite it? (yes/no): ").strip().lower()
+    csv_path = os.path.join(ROOT_DIR, "datasets", csv_filename)
+    if os.path.exists(parquet_path) and os.path.exists(csv_path):
+        overwrite = input(f"File datasets/{parquet_filename} and datasets/{csv_filename} already exists. Would you like to overwrite it? (yes/no): ").strip().lower()
         if overwrite != 'yes':
             return
-    print(f"Saving processed data to datasets/{parquet_filename}...")
-    df.to_parquet(parquet_path, index=False, engine="pyarrow")
-    print(f"Processed data saved to datasets/{parquet_filename}")
+
+    # print(f"Saving processed data to datasets/{parquet_filename}...")
+    # df.to_parquet(parquet_path, index=False, engine="pyarrow")
+    
+    print(f"Saving processed data to datasets/{csv_filename}...")
+    df.to_csv(csv_path)
+    print("Processed data saved.")
     
     # Visualize the dataset (requires matplotlib)
     # visualize_data(df)

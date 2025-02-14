@@ -1,4 +1,6 @@
 from preprocess._utils import os, logger, ROOT_DIR, EXPERIMENT_DATASETS, pickle_neural_data
+from preprocess.preprocessors._helpers import CausalNormalizer
+from preprocess._pkg import StandardScaler
 
 import time
 
@@ -31,11 +33,17 @@ def process_data(config: dict) -> None:
             window_size=config["smooth"]["window_size"],
             sigma=config["smooth"]["sigma"],
         )
+        # allow user to select transform and normalization order
+        transform = CausalNormalizer() if config["norm_transform"] == "causal" else StandardScaler()
+        normalize_first = config["normalize_first"]
+        
         start_time = time.time()
         pickle_neural_data(
             url=config["opensource_neural_url"],
             zipfile=config["opensource_neural_zipfile"],
             source_dataset=config["source_dataset"],
+            transform=transform, # New in preprint
+            normalize_first=normalize_first,
             smooth_method=config["smooth"]["method"],
             resample_dt=config["resample_dt"],
             interpolate_method=config["interpolate"],

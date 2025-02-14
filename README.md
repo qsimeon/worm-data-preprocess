@@ -35,9 +35,9 @@ connectome data to be used for downstream analysis and machine learning tasks.
 ```bash
 python preprocess.py
 ```
-*Downloading the neural data can take up to 10 minutes, depending on your download speed.*
+*Downloading the neural data should take approximately 10 minutes, depending on your download speed.*
 
-*Preprocessing all the data should take approximately 3-5 mins to run, depending*
+*Preprocessing all the data should take approximately 12 mins to run, depending*
 *on your hardware. We recommend enabling multithreading in the `config.py` file to speed this up.*
 
 3. Once the data has been preprocessed, you will find the processed data in
@@ -66,3 +66,6 @@ python neural_to_parqet.py
 2. Access the generated parqet file at `data/datasets/preprocessed_worm_data_short.parqet`
 
 ---
+
+This code is part of an ongoing research project with the MIT Department of Brain and
+Cognitive Sciences.

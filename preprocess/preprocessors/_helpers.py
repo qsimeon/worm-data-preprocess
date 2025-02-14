@@ -1,9 +1,11 @@
 """
-Contains specific modules that help in preprocessing the data, 
-such as common calcium trace data transformations, necessary for the 
+Contains specific modules that help in preprocessing the data,
+such as common calcium trace data transformations, necessary for the
 base and specific preprocessors.
 """
+
 from preprocess._pkg import torch, np, pd, interp1d, NEURON_LABELS, logger, NUM_NEURONS
+
 
 ###############################################################################################
 # TODO: Encapsulate smoothing functions in OOP style class.
@@ -167,7 +169,9 @@ def smooth_data_preprocess(calcium_data, time_in_seconds, smooth_method, **kwarg
     elif str(smooth_method).lower() == "none":
         smooth_ca_data = calcium_data
     else:
-        raise TypeError("See `configs/submodule/preprocess.yaml` for viable smooth methods.")
+        raise TypeError(
+            "See `preprocess/config.py` for viable smooth methods."
+        )
     return smooth_ca_data
 
 
@@ -214,7 +218,9 @@ def interpolate_data(time, data, target_dt, method="linear"):
         "linear",
         "quadratic",
         "cubic",
-    }, "Invalid interpolation method. Choose from [None, 'linear', 'cubic', 'quadratic']."
+    }, (
+        "Invalid interpolation method. Choose from [None, 'linear', 'cubic', 'quadratic']."
+    )
     assert time.shape[0] == data.shape[0], "Input temporal dimension mismatch."
     # If target_dt is None, return the original data
     if target_dt is None:
@@ -224,7 +230,9 @@ def interpolate_data(time, data, target_dt, method="linear"):
     # Create the target time vector, ensuring the range does not exceed the original data range
     target_time_np = np.arange(time.min(), time.max(), target_dt)
     num_neurons = data.shape[1]
-    interpolated_data_np = np.zeros((len(target_time_np), num_neurons), dtype=np.float32)
+    interpolated_data_np = np.zeros(
+        (len(target_time_np), num_neurons), dtype=np.float32
+    )
     # Use scipy's interpolation method
     # TODO: Vectorize this operation.
     if method == "linear":
@@ -236,13 +244,19 @@ def interpolate_data(time, data, target_dt, method="linear"):
         )
         for i in range(num_neurons):
             interp = interp1d(
-                x=time, y=data[:, i], kind=method, bounds_error=False, fill_value="extrapolate"
+                x=time,
+                y=data[:, i],
+                kind=method,
+                bounds_error=False,
+                fill_value="extrapolate",
             )
             interpolated_data_np[:, i] = interp(target_time_np)
     # Reshape interpolated time vector to (time, 1)
     target_time_np = target_time_np.reshape(-1, 1)
     # Final check for shape consistency
-    assert target_time_np.shape[0] == interpolated_data_np.shape[0], "Output temporal dimension."
+    assert target_time_np.shape[0] == interpolated_data_np.shape[0], (
+        "Output temporal dimension."
+    )
     # Return the interpolated time and data
     return target_time_np, interpolated_data_np
 
@@ -286,9 +300,9 @@ def aggregate_data(time, data, target_dt):
     # Reshape downsampled time vector to (time, 1)
     target_time_np = target_time_np.reshape(-1, 1)
     # Final check for shape consistency
-    assert (
-        target_time_np.shape[0] == downsampled_data.shape[0]
-    ), "Output temporal dimension mismatch."
+    assert target_time_np.shape[0] == downsampled_data.shape[0], (
+        "Output temporal dimension mismatch."
+    )
     # Return the interpolated data
     return target_time_np, downsampled_data
 
@@ -369,18 +383,29 @@ class CausalNormalizer:
         """
         X = self._handle_nans(X)
         T, D = X.shape
+
+        count = np.arange(1, T + 1).reshape(-1, 1)
         cumulative_sum = np.cumsum(X, axis=0)
         cumulative_squares_sum = np.cumsum(X**2, axis=0)
-        count = np.arange(1, T + 1).reshape(-1, 1)
+
         self.cumulative_mean_ = cumulative_sum / count
-        cumulative_variance = (
-            cumulative_squares_sum
-            - 2 * self.cumulative_mean_ * cumulative_sum
-            + count * self.cumulative_mean_**2
-        ) / (count - 1)
-        self.cumulative_std_ = np.sqrt(cumulative_variance)
-        # Avoid zero-division
-        self.cumulative_std_[self.cumulative_std_ == 0] = 1
+        cumulative_variance = (cumulative_squares_sum / count) - (
+            self.cumulative_mean_**2
+        )
+        self.cumulative_std_ = np.sqrt(
+            np.maximum(cumulative_variance, 1e-8)
+        )  # Avoid sqrt(0)
+
+        # # Avoid zero-division
+        # self.cumulative_std_[self.cumulative_std_ == 0] = 1
+
+        assert self.cumulative_mean_.shape == (T, D), (
+            "cumulative_mean is not shape of input!"
+        )
+        assert self.cumulative_std_.shape == self.cumulative_mean_.shape, (
+            "cumulative_std and cumulative_mean shapes don't match"
+        )
+
         return self
 
     def transform(self, X):
@@ -487,6 +512,16 @@ class CalciumDataReshaper:
         self.max_timesteps = self.worm_dataset["max_timesteps"]
         self.median_dt = self.worm_dataset["median_dt"]
         self.calcium_data = self.worm_dataset["calcium_data"]
+
+        # Only CausalNormalizer tracks these
+        self.original_cumulative_mean = self.worm_dataset.get("cumulative_mean", None)
+        self.original_cumulative_std = self.worm_dataset.get("cumulative_std", None)
+        # for future, clearer reference
+        self.using_causalnormalizer = (
+            self.original_cumulative_mean is not None
+            and self.original_cumulative_std is not None
+        )
+
         self.smooth_calcium_data = self.worm_dataset["smooth_calcium_data"]
         self.residual_calcium = self.worm_dataset["residual_calcium"]
         self.smooth_residual_calcium = self.worm_dataset["smooth_residual_calcium"]
@@ -521,6 +556,12 @@ class CalciumDataReshaper:
     def _reshape_data(self):
         """
         Reshapes the calcium data and updates the worm dataset.
+        This method performs the following steps:
+            1. Prepares the initial data with `_prepare_initial_data()`.
+            2. Fills the labeled neurons data with `_fill_labeled_neurons_data()`.
+            3. Fills the unlabeled neurons data with `_fill_unlabeled_neurons_data()`.
+            4. Updates the worm dataset with reshaped data with `_update_worm_dataset()`.
+            5. Removes mappings with 'idx' no longer needed with `_remove_old_mappings()`.
         """
         self._prepare_initial_data()
         self._fill_labeled_neurons_data()
@@ -531,10 +572,11 @@ class CalciumDataReshaper:
     def _prepare_initial_data(self):
         """
         Prepares initial data structures for reshaping.
+        Step 1 of reshape_data.
         """
-        assert (
-            len(self.idx_to_neuron) == self.calcium_data.shape[1]
-        ), "Number of neurons in calcium data matrix does not match number of recorded neurons."
+        assert len(self.idx_to_neuron) == self.calcium_data.shape[1], (
+            "Number of neurons in calcium data matrix does not match number of recorded neurons."
+        )
         self.labeled_neurons_mask = torch.zeros(NUM_NEURONS, dtype=torch.bool)
         self.unlabeled_neurons_mask = torch.zeros(NUM_NEURONS, dtype=torch.bool)
         self._init_empty_calcium_data()
@@ -542,10 +584,15 @@ class CalciumDataReshaper:
 
     def _init_empty_calcium_data(self):
         """
-        Initializes empty calcium data matrices.
+        Initializes empty calcium data matrices to be used for creating matrices
+        of a fixed size (to avoid issueswhen e.g. some neurons weren't measured)
+
+        Happens in prepare_inital_data -- the first step of reshaping.
         """
         # Resampled data
-        self.standard_calcium_data = torch.zeros(self.max_timesteps, NUM_NEURONS, dtype=self.dtype)
+        self.standard_calcium_data = torch.zeros(
+            self.max_timesteps, NUM_NEURONS, dtype=self.dtype
+        )
         self.standard_residual_calcium = torch.zeros(
             self.max_timesteps, NUM_NEURONS, dtype=self.dtype
         )
@@ -555,6 +602,15 @@ class CalciumDataReshaper:
         self.standard_residual_smooth_calcium = torch.zeros(
             self.max_timesteps, NUM_NEURONS, dtype=self.dtype
         )
+        
+        if self.using_causalnormalizer:
+            self.standard_cumulative_mean = torch.zeros(
+                self.max_timesteps, NUM_NEURONS, dtype=self.dtype
+            )
+            self.standard_cumulative_std = torch.zeros(
+                self.max_timesteps, NUM_NEURONS, dtype=self.dtype
+            )
+        
         # Raw data
         self.standard_original_calcium_data = torch.zeros(
             self.original_max_timesteps, NUM_NEURONS, dtype=self.dtype
@@ -591,9 +647,9 @@ class CalciumDataReshaper:
         )  # start at 0.0 seconds
         self.original_dt = np.diff(self.original_time_in_seconds, axis=0, prepend=0.0)
         self.original_median_dt = np.median(self.original_dt[1:]).item()
-        self.original_time_in_seconds = torch.from_numpy(self.original_time_in_seconds).to(
-            self.dtype
-        )
+        self.original_time_in_seconds = torch.from_numpy(
+            self.original_time_in_seconds
+        ).to(self.dtype)
         if self.original_time_in_seconds.ndim == 1:
             self.original_time_in_seconds = self.time_in_seconds.unsqueeze(-1)
         self.original_dt = torch.from_numpy(self.original_dt).to(self.dtype)
@@ -603,7 +659,9 @@ class CalciumDataReshaper:
     def _fill_labeled_neurons_data(self):
         """
         Fills data for labeled neurons.
+        Step 2 of reshape_data.
         """
+        # slot is the index of the neuron as we have mapped them in NEURON_LABELS
         for slot, neuron in enumerate(NEURON_LABELS):
             if neuron in self.neuron_to_idx:  # labeled neuron
                 idx = self.neuron_to_idx[neuron]
@@ -615,14 +673,15 @@ class CalciumDataReshaper:
     def _fill_calcium_data(self, idx, slot):
         """
         Fills calcium data for a given neuron index and slot.
+        Called as part of fill_labeled_neurons_data for each standard neuron.
 
         Parameters:
             idx (int): Index of the neuron in the original dataset.
             slot (int): Slot in the reshaped dataset.
         """
-        self.standard_calcium_data[:, slot] = torch.from_numpy(self.calcium_data[:, idx]).to(
-            self.dtype
-        )
+        self.standard_calcium_data[:, slot] = torch.from_numpy(
+            self.calcium_data[:, idx]
+        ).to(self.dtype)
         self.standard_residual_calcium[:, slot] = torch.from_numpy(
             self.residual_calcium[:, idx]
         ).to(self.dtype)
@@ -646,9 +705,18 @@ class CalciumDataReshaper:
             self.original_smooth_residual_calcium[:, idx]
         ).to(self.dtype)
 
+        if self.using_causalnormalizer:
+            self.standard_cumulative_mean[:, slot] = torch.from_numpy(
+                self.original_cumulative_mean[:, idx]
+            ).to(self.dtype)
+            self.standard_cumulative_std[:, slot] = torch.from_numpy(
+                self.original_cumulative_std[:, idx]
+            ).to(self.dtype)
+            
     def _fill_unlabeled_neurons_data(self):
         """
         Fills data for unlabeled neurons.
+        Step 3 of reshape_data.
         """
         free_slots = list(np.where(~self.labeled_neurons_mask)[0])
         for neuron in set(self.neuron_to_idx) - set(self.labeled_neuron_to_idx):
@@ -662,6 +730,7 @@ class CalciumDataReshaper:
     def _update_worm_dataset(self):
         """
         Updates the worm dataset with reshaped data and mappings.
+        Step 4 of reshape_data.
         """
         self.slot_to_neuron.update(self.slot_to_labeled_neuron)
         self.slot_to_neuron.update(self.slot_to_unlabeled_neuron)
@@ -669,11 +738,17 @@ class CalciumDataReshaper:
             {
                 "calcium_data": self.standard_calcium_data,  # normalized, resampled
                 "dt": self.dt,  # resampled (vector)
-                "idx_to_labeled_neuron": {v: k for k, v in self.labeled_neuron_to_idx.items()},
-                "idx_to_unlabeled_neuron": {v: k for k, v in self.unlabeled_neuron_to_idx.items()},
+                "idx_to_labeled_neuron": {
+                    v: k for k, v in self.labeled_neuron_to_idx.items()
+                },
+                "idx_to_unlabeled_neuron": {
+                    v: k for k, v in self.unlabeled_neuron_to_idx.items()
+                },
                 "median_dt": self.median_dt,  # resampled (scalar)
                 "labeled_neuron_to_idx": self.labeled_neuron_to_idx,
-                "labeled_neuron_to_slot": {v: k for k, v in self.slot_to_labeled_neuron.items()},
+                "labeled_neuron_to_slot": {
+                    v: k for k, v in self.slot_to_labeled_neuron.items()
+                },
                 "labeled_neurons_mask": self.labeled_neurons_mask,
                 "neuron_to_slot": {v: k for k, v in self.slot_to_neuron.items()},
                 "neurons_mask": self.labeled_neurons_mask | self.unlabeled_neurons_mask,
@@ -700,11 +775,19 @@ class CalciumDataReshaper:
             }
         )
 
+        if self.using_causalnormalizer:
+            self.worm_dataset.update(
+                {
+                    "cumulative_mean": self.standard_cumulative_mean,
+                    "cumulative_std": self.standard_cumulative_std,
+                }
+            )
+
     def _remove_old_mappings(self):
         """
         Removes old mappings from the worm dataset.
+        Step 5 (final step) of reshape_data.
         """
         keys_to_delete = [key for key in self.worm_dataset if "idx" in key]
         for key in keys_to_delete:
             self.worm_dataset.pop(key, None)
-

@@ -12,7 +12,7 @@ from preprocess._pkg import (
     to_dense_adj,
     Data,
     StandardScaler,
-    List
+    List,
 )
 from preprocess.preprocessors._helpers import (
     smooth_data_preprocess,
@@ -20,6 +20,7 @@ from preprocess.preprocessors._helpers import (
     aggregate_data,
     CausalNormalizer,
 )
+
 
 class ConnectomeBasePreprocessor:
     """
@@ -59,7 +60,9 @@ class ConnectomeBasePreprocessor:
         """
         self.neuron_labels = self.load_neuron_labels()
         self.neuron_master_sheet = self.load_neuron_master_sheet()
-        self.neuron_to_idx = {label: idx for idx, label in enumerate(self.neuron_labels)}
+        self.neuron_to_idx = {
+            label: idx for idx, label in enumerate(self.neuron_labels)
+        }
 
     def load_neuron_labels(self) -> List[str]:
         """Loads the neuron labels from a file or a constant.
@@ -123,12 +126,15 @@ class ConnectomeBasePreprocessor:
 
         # Alphabetically sort neuron types and encode them as integers
         df_master["type"] = df_master["type"].fillna("Unknown")
-        unique_types = sorted(df_master["type"].unique())  # inter, motor, pharynx, sensory
+        unique_types = sorted(
+            df_master["type"].unique()
+        )  # inter, motor, pharynx, sensory
         type_to_int = {neuron_type: i for i, neuron_type in enumerate(unique_types)}
 
         # Create tensor of neuron types (y) using the encoded integers
         y = torch.tensor(
-            [type_to_int[neuron_type] for neuron_type in df_master["type"]], dtype=torch.long
+            [type_to_int[neuron_type] for neuron_type in df_master["type"]],
+            dtype=torch.long,
         )
 
         # Map node indices to neuron types using integers
@@ -168,7 +174,9 @@ class ConnectomeBasePreprocessor:
             edge_attr = torch.cat([edge_attr, additional_edge_attr], dim=0)
 
         # Check for symmetry in the gap junction adjacency matrix (electrical synapses should be symmetric)
-        gap_junctions = to_dense_adj(edge_index=edge_index, edge_attr=edge_attr[:, 0]).squeeze(0)
+        gap_junctions = to_dense_adj(
+            edge_index=edge_index, edge_attr=edge_attr[:, 0]
+        ).squeeze(0)
         if not torch.allclose(gap_junctions.T, gap_junctions):
             raise AssertionError("The gap junction adjacency matrix is not symmetric.")
 
@@ -219,7 +227,8 @@ class ConnectomeBasePreprocessor:
 
         # Save the graph tensors to a file
         torch.save(
-            graph_tensors, os.path.join(ROOT_DIR, "data", "processed", "connectome", save_as)
+            graph_tensors,
+            os.path.join(ROOT_DIR, "data", "processed", "connectome", save_as),
         )
 
 
@@ -234,7 +243,10 @@ class NeuralBasePreprocessor:
 
     Attributes:
         source_dataset (str): The specific source dataset to be preprocessed.
-        transform (object): The sklearn transformation to be applied to the data.
+        transform (object): The sklearn transformation to be applied to the
+        data.
+        normalize_first (bool): Indicates whether normalization is done before
+        or after resampling
         smooth_method (str): The smoothing method to apply to the data.
         resample_dt (float): The resampling time interval in seconds.
         raw_data_path (str): The path where the raw dat is downloaded at.
@@ -266,8 +278,8 @@ class NeuralBasePreprocessor:
     def __init__(
         self,
         source_dataset,
-        # TODO: Try different transforms from sklearn such as QuantileTransformer, etc. as well as custom CausalNormalizer.
-        transform=StandardScaler(),  # StandardScaler() #PowerTransformer() #CausalNormalizer() #None
+        transform=CausalNormalizer(),  # StandardScaler() #PowerTransformer() #CausalNormalizer() #None
+        normalize_first=False,
         smooth_method="none",
         interpolate_method="linear",
         resample_dt=0.1,
@@ -278,7 +290,7 @@ class NeuralBasePreprocessor:
 
         Parameters:
             source_dataset (str): The name of the source dataset to be preprocessed.
-            transform (object, optional): The sklearn transformation to be applied to the data. Default is StandardScaler().
+            transform (object, optional): The sklearn transformation to be applied to the data. Default is CausalNormalizer().
             smooth_method (str, optional): The smoothing method to apply to the data. Default is "moving".
             interpolate_method (str, optional): The interpolation method to use when resampling the data. Default is "linear".
             resample_dt (float, optional): The resampling time interval in seconds. Default is 0.1.
@@ -286,6 +298,7 @@ class NeuralBasePreprocessor:
         """
         self.source_dataset = source_dataset
         self.transform = transform
+        self.normalize_first = normalize_first
         self.smooth_method = smooth_method
         self.interpolate_method = interpolate_method
         self.resample_dt = resample_dt
@@ -399,14 +412,21 @@ class NeuralBasePreprocessor:
         idx_to_neuron = {
             nid: (
                 str(nid)
-                if (j is None or isinstance(j, np.ndarray) or j == "merge" or not j.isalnum())
+                if (
+                    j is None
+                    or isinstance(j, np.ndarray)
+                    or j == "merge"
+                    or not j.isalnum()
+                )
                 else str(j)
             )
             for nid, j in enumerate(unique_IDs)
         }
         idx_to_neuron = {
             nid: (
-                name.replace("0", "") if not name.endswith("0") and not name.isnumeric() else name
+                name.replace("0", "")
+                if not name.endswith("0") and not name.isnumeric()
+                else name
             )
             for nid, name in idx_to_neuron.items()
         }
@@ -481,7 +501,8 @@ class NeuralBasePreprocessor:
         t, n = data.shape
         max_nan_stretch_allowed = int(t * nan_stretch_threshold)
         bad_traces_mask = (
-            np.apply_along_axis(self.get_longest_nan_stretch, 0, data) > max_nan_stretch_allowed
+            np.apply_along_axis(self.get_longest_nan_stretch, 0, data)
+            > max_nan_stretch_allowed
         )
         good_traces_mask = ~bad_traces_mask
         filtered_data = data[:, good_traces_mask]
@@ -549,7 +570,10 @@ class NeuralBasePreprocessor:
         Returns:
             dict: The loaded data.
         """
-        return mat73.loadmat(os.path.join(self.raw_data_path, self.source_dataset, file_name), verbose=False)
+        return mat73.loadmat(
+            os.path.join(self.raw_data_path, self.source_dataset, file_name),
+            verbose=False,
+        )
 
     def extract_data(self):
         """
@@ -591,7 +615,7 @@ class NeuralBasePreprocessor:
         """
         raise NotImplementedError()
 
-    def preprocess_traces(
+    def old_preprocess_traces(
         self,
         neuron_IDs,
         traces,
@@ -601,7 +625,10 @@ class NeuralBasePreprocessor:
         metadata=dict(),
     ):
         """
-        Helper function for preprocessing calcium fluorescence neural data from one worm.
+        Helper function for preprocessing calcium fluorescence neural data from
+        one worm.
+        Called immediately before saving the data for each worm in each subclass
+        of NeuralBaseProcessor (dataset specific processors).
         This method checks that the neuron labels, data matrix and time vector are of consistent
         shapes (e.g. number of timesteps in data matrix should be same as length of time vector).
         Any empty data (e.g. no labeled neurons or no recorded activity data) are thrown out.
@@ -619,35 +646,36 @@ class NeuralBasePreprocessor:
 
         Steps:
             Iterate through the traces and preprocess each one:
-                1. Normalize the calcium data.
+                1. Normalize the calcium data; shape = (max_timesteps, num_neurons)
                 2. Compute the residual calcium.
                 3. Smooth the data.
                 4. Resample the data.
                 5. Name the worm and update the index.
             Save the resulting data.
         """
-        assert (
-            len(neuron_IDs) == len(traces) == len(raw_timeVectorSeconds)
-        ), "Lists for neuron labels, activity data, and time vectors must all be the same length."
+        assert len(neuron_IDs) == len(traces) == len(raw_timeVectorSeconds), (
+            "Lists for neuron labels, activity data, and time vectors must all be the same length."
+        )
+        print("using original process_traces")
         # Each worm has a unique set of neurons, time vectors and calcium traces
         for i, trace_data in enumerate(traces):
-            # Matrix `trace_data` should be shaped as (time, neurons)
+            # Matrix trace_data should be shaped as (time, neurons)
             assert trace_data.ndim == 2, "Calcium traces must be 2D arrays."
-            assert trace_data.shape[0] == len(
-                raw_timeVectorSeconds[i]
-            ), "Calcium trace does not have the right number of time points."
-            assert trace_data.shape[1] == len(
-                neuron_IDs[i]
-            ), "Calcium trace does not have the right number of neurons."
-            # Ignore any worms with empty traces
-            if trace_data.size == 0:
+            assert trace_data.shape[0] == len(raw_timeVectorSeconds[i]), (
+                "Calcium trace does not have the right number of time points."
+            )
+            assert trace_data.shape[1] == len(neuron_IDs[i]), (
+                "Calcium trace does not have the right number of neurons."
+            )
+
+            # Skip empty or very short recordings
+            if trace_data.size == 0 or len(raw_timeVectorSeconds[i]) < 600:
                 continue
-            # Ignore any worms with very short recordings
-            if len(raw_timeVectorSeconds[i]) < 600:
-                continue
+
             # Map labeled neurons
             unique_IDs = [
-                (self.pick_non_none(j) if isinstance(j, list) else j) for j in neuron_IDs[i]
+                (self.pick_non_none(j) if isinstance(j, list) else j)
+                for j in neuron_IDs[i]
             ]
             unique_IDs = [
                 (str(_) if j is None or isinstance(j, np.ndarray) else str(j))
@@ -655,36 +683,59 @@ class NeuralBasePreprocessor:
             ]
             _, unique_indices = np.unique(unique_IDs, return_index=True)
             unique_IDs = [unique_IDs[_] for _ in unique_indices]
-            # Create neuron label to index mapping
+            # Create neuron_label : index mapping and ignore no labeled neurons
             neuron_to_idx, num_labeled_neurons = self.create_neuron_idx(unique_IDs)
-            # Ignore any worms with no labelled neurons
             if num_labeled_neurons == 0:
                 continue
-            # Only get data for unique neurons
+
+            # Only use data for unique neurons
             trace_data = trace_data[:, unique_indices.astype(int)]
             # Normalize calcium data
-            calcium_data = self.normalize_data(trace_data)  # matrix
+            calcium_data = self.normalize_data(
+                trace_data
+            )  # matrix (time_points, neurons)
+
+            # only causalnormalizer tracks cumulative mean and std
+            cumulative_data = {}
+            if isinstance(self.transform, CausalNormalizer):
+                cumulative_data = {
+                    "cumulative_mean": self.transform.cumulative_mean_,
+                    "cumulative_std": self.transform.cumulative_std_,
+                }  # unpacked into worm data
+                assert calcium_data.shape == cumulative_data["cumulative_mean"].shape, (
+                    "Cumulative data is misshaped"
+                )
+
             # Compute residual calcium
-            time_in_seconds = raw_timeVectorSeconds[i].reshape(raw_timeVectorSeconds[i].shape[0], 1)
+            time_in_seconds = raw_timeVectorSeconds[i].reshape(
+                raw_timeVectorSeconds[i].shape[0], 1
+            )
             time_in_seconds = np.array(time_in_seconds, dtype=np.float32)  # vector
-            time_in_seconds = time_in_seconds - time_in_seconds[0]  # start at 0.0 seconds
+            time_in_seconds = (
+                time_in_seconds - time_in_seconds[0]
+            )  # start at 0.0 seconds
             dt = np.diff(time_in_seconds, axis=0, prepend=0.0)  # vector
             original_median_dt = np.median(dt[1:]).item()  # scalar
+
             residual_calcium = np.gradient(
                 calcium_data, time_in_seconds.squeeze(), axis=0
             )  # vector
             # Smooth data
             smooth_calcium_data = self.smooth_data(calcium_data, time_in_seconds)
-            smooth_residual_calcium = self.smooth_data(residual_calcium, time_in_seconds)
+            smooth_residual_calcium = self.smooth_data(
+                residual_calcium, time_in_seconds
+            )
             # Resample data
             upsample = self.resample_dt < original_median_dt  # bool
-            _, resampled_calcium_data = self.resample_data(time_in_seconds, calcium_data, upsample)
+            _, resampled_calcium_data = self.resample_data(
+                time_in_seconds, calcium_data, upsample
+            )
             _, resampled_residual_calcium = self.resample_data(
                 time_in_seconds, residual_calcium, upsample
             )
             # NOTE: We use the resampling of the smooth calcium data to give us the resampled time points
-            resampled_time_in_seconds, resampled_smooth_calcium_data = self.resample_data(
-                time_in_seconds, smooth_calcium_data, upsample
+            resampled_time_in_seconds, resampled_smooth_calcium_data = (
+                self.resample_data(time_in_seconds, smooth_calcium_data, upsample)
             )
             resampled_time_in_seconds = (
                 resampled_time_in_seconds - resampled_time_in_seconds[0]
@@ -692,17 +743,23 @@ class NeuralBasePreprocessor:
             _, resampled_smooth_residual_calcium = self.resample_data(
                 time_in_seconds, smooth_residual_calcium, upsample
             )
-            resampled_dt = np.diff(resampled_time_in_seconds, axis=0, prepend=0.0)  # vector
+            resampled_dt = np.diff(
+                resampled_time_in_seconds, axis=0, prepend=0.0
+            )  # vector
             resampled_median_dt = np.median(resampled_dt[1:]).item()  # scalar
-            assert np.isclose(
-                self.resample_dt, resampled_median_dt, atol=0.01
-            ), f"Resampling failed. The median dt ({resampled_median_dt}) of the resampled time vector is different from desired dt ({self.resample_dt})."
+
+            assert np.isclose(self.resample_dt, resampled_median_dt, atol=0.01), (
+                f"Resampling failed. The median dt ({resampled_median_dt}) of the resampled time vector is different from desired dt ({self.resample_dt})."
+            )
+
             max_timesteps, num_neurons = resampled_calcium_data.shape
             num_unlabeled_neurons = int(num_neurons) - num_labeled_neurons
+
             # Name worm and update index
             worm = "worm" + str(worm_idx)  # use global worm index
             worm_idx += 1  # increment worm index
             # Save data
+            print(worm + ":" + str(smooth_calcium_data.shape))
             worm_dict = {
                 worm: {
                     "calcium_data": resampled_calcium_data,  # normalized and resampled
@@ -710,7 +767,9 @@ class NeuralBasePreprocessor:
                     "dt": resampled_dt,  # vector from resampled time vector
                     "idx_to_neuron": dict((v, k) for k, v in neuron_to_idx.items()),
                     "interpolate_method": self.interpolate_method,
-                    "max_timesteps": int(max_timesteps),  # scalar from resampled time vector
+                    "max_timesteps": int(
+                        max_timesteps
+                    ),  # scalar from resampled time vector
                     "median_dt": self.resample_dt,  # scalar from resampled time vector
                     "neuron_to_idx": neuron_to_idx,
                     "num_labeled_neurons": num_labeled_neurons,
@@ -718,6 +777,7 @@ class NeuralBasePreprocessor:
                     "num_unlabeled_neurons": num_unlabeled_neurons,
                     "original_dt": dt,  # vector from original time vector
                     "original_calcium_data": calcium_data,  # normalized
+                    **cumulative_data,  # cumulative mean and std from CausalNormalizer
                     "original_max_timesteps": int(
                         calcium_data.shape[0]
                     ),  # scalar from original time vector
@@ -742,4 +802,254 @@ class NeuralBasePreprocessor:
         # Return the updated preprocessed data and worm index
         return preprocessed_data, worm_idx
 
+    ## NEW METHOD TO ACCOMODATE CUMULATIVE STATISTICS
+    def preprocess_traces(
+        self,
+        neuron_IDs,
+        traces,
+        raw_timeVectorSeconds,
+        preprocessed_data,
+        worm_idx,
+        metadata=dict(),
+    ):
+        """
+        Helper function for preprocessing calcium fluorescence neural data from one worm.
+        Depending on the parameter 'self.normalize_first', the processing steps occur in one
+        of two orders:
 
+        If normalize_first is True:
+            1. Normalize the calcium data.
+            2. Compute residual calcium (using np.gradient on the normalized data).
+            3. Smooth the normalized data and its residual.
+            4. Resample the normalized signals (and cumulative statistics, if using CausalNormalizer)
+                to the desired time grid.
+            5. Name the worm and update its data.
+
+            NOTE: Normalizing first is not recommended when using the CausalNormalizer because
+                    resampling the cumulative statistics changes their distribution, so they may
+                    no longer accurately align with the normalized calcium data.
+
+        If normalize_first is False (default):
+            1. Compute residual calcium on the raw data.
+            2. Smooth the raw data and its residual.
+            3. Resample the raw signals to the desired time grid.
+            4. Normalize the resampled raw data.
+            5. Name the worm and update its data.
+
+        Parameters:
+            neuron_IDs (list): List of arrays of neuron IDs.
+            traces (list): List of arrays of calcium traces, with indices corresponding to neuron_IDs.
+            raw_timeVectorSeconds (list): List of arrays of time vectors, with indices corresponding to neuron_IDs.
+            preprocessed_data (dict): Dictionary of preprocessed data from previous worms.
+            worm_idx (int): Index of the current worm.
+            metadata (dict, optional): Additional metadata to include.
+
+        Returns:
+            tuple: (preprocessed_data, worm_idx) where preprocessed_data is the updated data dictionary
+                and worm_idx is the next worm index.
+        """
+        print(f"using new process_traces with {self.normalize_first=}")
+        assert len(neuron_IDs) == len(traces) == len(raw_timeVectorSeconds), (
+            "Lists for neuron labels, activity data, and time vectors must all be the same length."
+        )
+
+        for i, trace_data in enumerate(traces):
+            # Verify shape consistency: (time, neurons)
+            assert trace_data.ndim == 2, "Calcium traces must be 2D arrays."
+            assert trace_data.shape[0] == len(raw_timeVectorSeconds[i]), (
+                "Calcium trace does not have the right number of time points."
+            )
+            assert trace_data.shape[1] == len(neuron_IDs[i]), (
+                "Calcium trace does not have the right number of neurons."
+            )
+
+            # Skip empty or very short recordings
+            if trace_data.size == 0 or len(raw_timeVectorSeconds[i]) < 600:
+                continue
+
+            # Map neuron IDs: pick non-None values and get unique neurons
+            unique_IDs = [
+                (self.pick_non_none(j) if isinstance(j, list) else j)
+                for j in neuron_IDs[i]
+            ]
+            unique_IDs = [
+                (str(_) if j is None or isinstance(j, np.ndarray) else str(j))
+                for _, j in enumerate(unique_IDs)
+            ]
+            _, unique_indices = np.unique(unique_IDs, return_index=True)
+            unique_IDs = [unique_IDs[idx] for idx in unique_indices]
+
+            # Create mapping: neuron label -> index; skip if no labeled neurons
+            neuron_to_idx, num_labeled_neurons = self.create_neuron_idx(unique_IDs)
+            if num_labeled_neurons == 0:
+                continue
+
+            # Use only data for unique neurons
+            trace_data = trace_data[:, unique_indices.astype(int)]
+
+            # Prepare time vector and dt (original)
+            time_in_seconds = raw_timeVectorSeconds[i].reshape(-1, 1).astype(np.float32)
+            time_in_seconds -= time_in_seconds[0]  # start at 0.0 seconds
+            dt = np.diff(time_in_seconds, axis=0, prepend=0.0)
+            original_median_dt = np.median(dt[1:]).item()
+
+            cumulative_data = {}
+
+            if self.normalize_first:
+                # ----- Branch A: Normalize First -----
+                # Step 1: Normalize the calcium data (original signal; not resampled)
+                calcium_data = self.normalize_data(trace_data)
+                # Save original (normalized) calcium data
+                original_calcium_data = calcium_data
+                if isinstance(self.transform, CausalNormalizer):
+                    cumulative_data = {
+                        "cumulative_mean": self.transform.cumulative_mean_,
+                        "cumulative_std": self.transform.cumulative_std_,
+                    }
+                    assert (
+                        calcium_data.shape == cumulative_data["cumulative_mean"].shape
+                    ), "Cumulative data is misshaped"
+
+                # Step 2: Compute residual calcium on normalized data
+                residual_calcium = np.gradient(
+                    calcium_data, time_in_seconds.squeeze(), axis=0
+                )
+                original_residual_calcium = residual_calcium
+
+                # Step 3: Smooth the normalized data and its residual
+                smooth_calcium_data = self.smooth_data(calcium_data, time_in_seconds)
+                original_smooth_calcium_data = smooth_calcium_data
+                smooth_residual_calcium = self.smooth_data(
+                    residual_calcium, time_in_seconds
+                )
+                original_smooth_residual_calcium = smooth_residual_calcium
+
+                # Decide on upsampling
+                upsample = self.resample_dt < original_median_dt
+                # Step 4: Resample the normalized signals
+                _, resampled_calcium_data = self.resample_data(
+                    time_in_seconds, calcium_data, upsample
+                )
+                _, resampled_residual_calcium = self.resample_data(
+                    time_in_seconds, residual_calcium, upsample
+                )
+                resampled_time_in_seconds, resampled_smooth_calcium_data = (
+                    self.resample_data(time_in_seconds, smooth_calcium_data, upsample)
+                )
+                resampled_time_in_seconds -= resampled_time_in_seconds[
+                    0
+                ]  # start at 0.0s
+                _, resampled_smooth_residual_calcium = self.resample_data(
+                    time_in_seconds, smooth_residual_calcium, upsample
+                )
+                resampled_dt = np.diff(resampled_time_in_seconds, axis=0, prepend=0.0)
+                resampled_median_dt = np.median(resampled_dt[1:]).item()
+                # Step 4b: Resample cumulative statistics so they match the resampled calcium data
+                if isinstance(self.transform, CausalNormalizer):
+                    _, resampled_cumulative_mean = self.resample_data(
+                        time_in_seconds, cumulative_data["cumulative_mean"], upsample
+                    )
+                    _, resampled_cumulative_std = self.resample_data(
+                        time_in_seconds, cumulative_data["cumulative_std"], upsample
+                    )
+                    cumulative_data["cumulative_mean"] = resampled_cumulative_mean
+                    cumulative_data["cumulative_std"] = resampled_cumulative_std
+
+            else:
+                # ----- Branch B: Resample First -----
+                # Step 1: Compute residual calcium on raw data
+                residual_calcium = np.gradient(
+                    trace_data, time_in_seconds.squeeze(), axis=0
+                )
+                original_residual_calcium = residual_calcium
+                # Step 2: Smooth the raw data and its residual
+                smooth_calcium_data = self.smooth_data(trace_data, time_in_seconds)
+                original_smooth_calcium_data = smooth_calcium_data
+                smooth_residual_calcium = self.smooth_data(
+                    residual_calcium, time_in_seconds
+                )
+                original_smooth_residual_calcium = smooth_residual_calcium
+                # Decide on upsampling
+                upsample = self.resample_dt < original_median_dt
+                # Step 3: Resample raw signals
+                _, resampled_raw_calcium_data = self.resample_data(
+                    time_in_seconds, trace_data, upsample
+                )
+                _, resampled_residual_calcium = self.resample_data(
+                    time_in_seconds, residual_calcium, upsample
+                )
+                resampled_time_in_seconds, resampled_smooth_calcium_data = (
+                    self.resample_data(time_in_seconds, smooth_calcium_data, upsample)
+                )
+                resampled_time_in_seconds -= resampled_time_in_seconds[0]
+                _, resampled_smooth_residual_calcium = self.resample_data(
+                    time_in_seconds, smooth_residual_calcium, upsample
+                )
+                resampled_dt = np.diff(resampled_time_in_seconds, axis=0, prepend=0.0)
+                resampled_median_dt = np.median(resampled_dt[1:]).item()
+                # Step 4: Normalize the resampled raw data
+                calcium_data = self.normalize_data(resampled_raw_calcium_data)
+                if isinstance(self.transform, CausalNormalizer):
+                    cumulative_data = {
+                        "cumulative_mean": self.transform.cumulative_mean_,
+                        "cumulative_std": self.transform.cumulative_std_,
+                    }
+                    assert (
+                        calcium_data.shape == cumulative_data["cumulative_mean"].shape
+                    ), "Cumulative data is misshaped"
+                resampled_calcium_data = calcium_data
+                # In branch B, the normalized data comes from the resampled raw data.
+                original_calcium_data = calcium_data
+
+            # Validate that the resampled median dt matches the desired dt
+            assert np.isclose(self.resample_dt, resampled_median_dt, atol=0.01), (
+                f"Resampling failed. The median dt ({resampled_median_dt}) of the resampled time vector is different from desired dt ({self.resample_dt})."
+            )
+
+            # Determine final dimensions and number of unlabeled neurons
+            max_timesteps, num_neurons = resampled_calcium_data.shape
+            num_unlabeled_neurons = int(num_neurons) - num_labeled_neurons
+
+            # ----- Step 5: Name the worm and update its data -----
+            worm = "worm" + str(worm_idx)
+            worm_idx += 1
+
+            worm_dict = {
+                worm: {
+                    "calcium_data": resampled_calcium_data,  # normalized and resampled
+                    "source_dataset": self.source_dataset,
+                    "dt": resampled_dt,  # vector from resampled time vector
+                    "idx_to_neuron": {v: k for k, v in neuron_to_idx.items()},
+                    "interpolate_method": self.interpolate_method,
+                    "max_timesteps": int(
+                        max_timesteps
+                    ),  # scalar from resampled time vector
+                    "median_dt": self.resample_dt,  # scalar from resampled time vector
+                    "neuron_to_idx": neuron_to_idx,
+                    "num_labeled_neurons": num_labeled_neurons,
+                    "num_neurons": int(num_neurons),
+                    "num_unlabeled_neurons": num_unlabeled_neurons,
+                    "original_dt": dt,  # vector from original time vector
+                    "original_calcium_data": original_calcium_data,  # normalized (if branch A, non-resampled; if B, normalized resampled)
+                    **cumulative_data,  # cumulative mean and std from CausalNormalizer
+                    "original_max_timesteps": int(
+                        original_calcium_data.shape[0]
+                    ),  # scalar from original time vector
+                    "original_median_dt": original_median_dt,  # scalar from original time vector
+                    "original_residual_calcium": original_residual_calcium,  # original (computed on normalized data in A, raw in B)
+                    "original_smooth_calcium_data": original_smooth_calcium_data,  # normalized and smoothed (original)
+                    "original_smooth_residual_calcium": original_smooth_residual_calcium,  # smoothed (original)
+                    "original_time_in_seconds": time_in_seconds,  # original time vector
+                    "residual_calcium": resampled_residual_calcium,  # resampled
+                    "smooth_calcium_data": resampled_smooth_calcium_data,  # normalized, smoothed and resampled
+                    "smooth_method": self.smooth_method,
+                    "smooth_residual_calcium": resampled_smooth_residual_calcium,  # smoothed and resampled
+                    "time_in_seconds": resampled_time_in_seconds,  # resampled time vector
+                    "worm": worm,  # worm ID
+                    "extra_info": self.create_metadata(
+                        **metadata
+                    ),  # additional metadata
+                }
+            }
+            preprocessed_data.update(worm_dict)
+        return preprocessed_data, worm_idx

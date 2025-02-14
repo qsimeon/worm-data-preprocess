@@ -24,7 +24,7 @@ class Kato2015Preprocessor(NeuralBasePreprocessor):
         preprocess(): Preprocesses the Kato et al., 2015 neural data and saves a pickle file.
     """
 
-    def __init__(self, transform, smooth_method, interpolate_method, resample_dt, **kwargs):
+    def __init__(self, transform, normalize_first, smooth_method, interpolate_method, resample_dt, **kwargs):
         """
         Initialize the Kato2015Preprocessor with the provided parameters.
 
@@ -33,18 +33,18 @@ class Kato2015Preprocessor(NeuralBasePreprocessor):
             smooth_method (str): The smoothing method to apply to the data.
             interpolate_method (str): The interpolation method to use when resampling the data.
             resample_dt (float): The resampling time interval in seconds.
+            normalize_first (bool): Whether to normalize the data before resampling.
             **kwargs: Additional keyword arguments for smoothing.
         """
         super().__init__(
             "Kato2015",
             transform,
+            normalize_first,
             smooth_method,
             interpolate_method,
             resample_dt,
             **kwargs,
         )
-        self.citation = "Kato, S., Kaplan, H. S., Schrödel, T., Skora, S., Lindsay, T. H., Yemini, E., Lockery, S., & Zimmer, M. (2015). Global brain dynamics embed the motor command sequence of Caenorhabditis elegans. Cell, 163(3), 656–669. https://doi.org/10.1016/j.cell.2015.09.034"
-
     def extract_data(self, arr):
         """
         Extracts neuron IDs, calcium traces, and time vector from the loaded data array.
@@ -124,12 +124,14 @@ class Nichols2017Preprocessor(NeuralBasePreprocessor):
         preprocess(): Preprocesses the Nichols et al., 2017 neural data and saves it as a pickle file.
     """
 
-    def __init__(self, transform, smooth_method, interpolate_method, resample_dt, **kwargs):
+    def __init__(self, transform, normalize_first,smooth_method, interpolate_method, resample_dt, **kwargs):
         """
         Initialize the Nichols2017Preprocessor with the provided parameters.
 
         Parameters:
-            transform (object): The sklearn transformation to be applied to the data.
+            transform (object): The sklearn transformation to be applied to the
+            data.
+            normalize_first (bool): Whether to normalize the data before resampling.
             smooth_method (str): The smoothing method to apply to the data.
             interpolate_method (str): The interpolation method to use when resampling the data.
             resample_dt (float): The resampling time interval in seconds.
@@ -138,6 +140,7 @@ class Nichols2017Preprocessor(NeuralBasePreprocessor):
         super().__init__(
             "Nichols2017",
             transform,
+            normalize_first,
             smooth_method,
             interpolate_method,
             resample_dt,
@@ -227,12 +230,14 @@ class Skora2018Preprocessor(NeuralBasePreprocessor):
         preprocess(): Preprocesses the Skora et al., 2018 neural data and saves it as a pickle file.
     """
 
-    def __init__(self, transform, smooth_method, interpolate_method, resample_dt, **kwargs):
+    def __init__(self, transform, normalize_first, smooth_method, interpolate_method, resample_dt, **kwargs):
         """
         Initialize the Skora2018Preprocessor with the provided parameters.
 
         Parameters:
-            transform (object): The sklearn transformation to be applied to the data.
+            transform (object): The sklearn transformation to be applied to the
+            data.
+            normalize_first (bool): Whether to normalize the data before resampling.
             smooth_method (str): The smoothing method to apply to the data.
             interpolate_method (str): The interpolation method to use when resampling the data.
             resample_dt (float): The resampling time interval in seconds.
@@ -241,6 +246,7 @@ class Skora2018Preprocessor(NeuralBasePreprocessor):
         super().__init__(
             "Skora2018",
             transform,
+            normalize_first,
             smooth_method,
             interpolate_method,
             resample_dt,
@@ -326,12 +332,14 @@ class Kaplan2020Preprocessor(NeuralBasePreprocessor):
         preprocess(): Preprocesses the Kaplan et al., 2020 neural data and saves a pickle file.
     """
 
-    def __init__(self, transform, smooth_method, interpolate_method, resample_dt, **kwargs):
+    def __init__(self, transform, normalize_first, smooth_method, interpolate_method, resample_dt, **kwargs):
         """
         Initialize the Kaplan2020Preprocessor with the provided parameters.
 
         Parameters:
-            transform (object): The sklearn transformation to be applied to the data.
+            transform (object): The sklearn transformation to be applied to the
+            data.
+            normalize_first (bool): Whether to normalize the data before resampling.
             smooth_method (str): The smoothing method to apply to the data.
             interpolate_method (str): The interpolation method to use when resampling the data.
             resample_dt (float): The resampling time interval in seconds.
@@ -340,6 +348,7 @@ class Kaplan2020Preprocessor(NeuralBasePreprocessor):
         super().__init__(
             "Kaplan2020",
             transform,
+            normalize_first,
             smooth_method,
             interpolate_method,
             resample_dt,
@@ -442,12 +451,14 @@ class Nejatbakhsh2020Preprocessor(NeuralBasePreprocessor):
         preprocess(): Preprocesses the Nejatbakhsh et al., 2020 neural data and saves a pickle file.
     """
 
-    def __init__(self, transform, smooth_method, interpolate_method, resample_dt, **kwargs):
+    def __init__(self, transform, normalize_first, smooth_method, interpolate_method, resample_dt, **kwargs):
         """
         Initialize the Nejatbakhsh2020Preprocessor with the provided parameters.
 
         Parameters:
-            transform (object): The sklearn transformation to be applied to the data.
+            transform (object): The sklearn transformation to be applied to the
+            data.
+            normalize_first (bool): Whether to normalize the data before resampling.
             smooth_method (str): The smoothing method to apply to the data.
             interpolate_method (str): The interpolation method to use when resampling the data.
             resample_dt (float): The resampling time interval in seconds.
@@ -456,6 +467,7 @@ class Nejatbakhsh2020Preprocessor(NeuralBasePreprocessor):
         super().__init__(
             "Nejatbakhsh2020",
             transform,
+            normalize_first,
             smooth_method,
             interpolate_method,
             resample_dt,
@@ -554,12 +566,14 @@ class Yemini2021Preprocessor(NeuralBasePreprocessor):
         preprocess(): Preprocesses the Yemini et al., 2021 neural data and saves it as a pickle file.
     """
 
-    def __init__(self, transform, smooth_method, interpolate_method, resample_dt, **kwargs):
+    def __init__(self, transform, normalize_first, smooth_method, interpolate_method, resample_dt, **kwargs):
         """
         Initialize the Yemini2021Preprocessor with the provided parameters.
 
         Parameters:
-            transform (object): The sklearn transformation to be applied to the data.
+            transform (object): The sklearn transformation to be applied to the
+            data.
+            normalize_first (bool): Whether to normalize the data before resampling.
             smooth_method (str): The smoothing method to apply to the data.
             interpolate_method (str): The interpolation method to use when resampling the data.
             resample_dt (float): The resampling time interval in seconds.
@@ -568,6 +582,7 @@ class Yemini2021Preprocessor(NeuralBasePreprocessor):
         super().__init__(
             "Yemini2021",
             transform,
+            normalize_first,
             smooth_method,
             interpolate_method,
             resample_dt,
@@ -767,12 +782,14 @@ class Uzel2022Preprocessor(NeuralBasePreprocessor):
         preprocess(): Preprocesses the Uzel et al., 2022 neural data and saves is as a file.
     """
 
-    def __init__(self, transform, smooth_method, interpolate_method, resample_dt, **kwargs):
+    def __init__(self, transform, normalize_first, smooth_method, interpolate_method, resample_dt, **kwargs):
         """
         Initialize the Uzel2022Preprocessor with the provided parameters.
 
         Parameters:
-            transform (object): The sklearn transformation to be applied to the data.
+            transform (object): The sklearn transformation to be applied to the
+            data.
+            normalize_first (bool): Whether to normalize the data before resampling.
             smooth_method (str): The smoothing method to apply to the data.
             interpolate_method (str): The interpolation method to use when resampling the data.
             resample_dt (float): The resampling time interval in seconds.
@@ -781,6 +798,7 @@ class Uzel2022Preprocessor(NeuralBasePreprocessor):
         super().__init__(
             "Uzel2022",
             transform,
+            normalize_first,
             smooth_method,
             interpolate_method,
             resample_dt,
@@ -881,12 +899,14 @@ class Dag2023Preprocessor(NeuralBasePreprocessor):
         preprocess(): Preprocesses the Dag et al., 2023 neural data and saves it as a pickle file.
     """
 
-    def __init__(self, transform, smooth_method, interpolate_method, resample_dt, **kwargs):
+    def __init__(self, transform, normalize_first, smooth_method, interpolate_method, resample_dt, **kwargs):
         """
         Initialize the Dag2023Preprocessor with the provided parameters.
 
         Parameters:
-            transform (object): The sklearn transformation to be applied to the data.
+            transform (object): The sklearn transformation to be applied to the
+            data.
+            normalize_first (bool): Whether to normalize the data before resampling.
             smooth_method (str): The smoothing method to apply to the data.
             interpolate_method (str): The interpolation method to use when resampling the data.
             resample_dt (float): The resampling time interval in seconds.
@@ -895,6 +915,7 @@ class Dag2023Preprocessor(NeuralBasePreprocessor):
         super().__init__(
             "Dag2023",
             transform,
+            normalize_first,
             smooth_method,
             interpolate_method,
             resample_dt,
@@ -1089,12 +1110,14 @@ class Flavell2023Preprocessor(NeuralBasePreprocessor):
         preprocess(): Preprocesses the Flavell et al., 2023 neural data and saves it as pickle file.
     """
 
-    def __init__(self, transform, smooth_method, interpolate_method, resample_dt, **kwargs):
+    def __init__(self, transform, normalize_first, smooth_method, interpolate_method, resample_dt, **kwargs):
         """
         Initialize the Flavell2023Preprocessor with the provided parameters.
 
         Parameters:
-            transform (object): The sklearn transformation to be applied to the data.
+            transform (object): The sklearn transformation to be applied to the
+            data.
+            normalize_first (bool): Whether to normalize the data before resampling.
             smooth_method (str): The smoothing method to apply to the data.
             interpolate_method (str): The interpolation method to use when resampling the data.
             resample_dt (float): The resampling time interval in seconds.
@@ -1103,6 +1126,7 @@ class Flavell2023Preprocessor(NeuralBasePreprocessor):
         super().__init__(
             "Flavell2023",
             transform,
+            normalize_first,
             smooth_method,
             interpolate_method,
             resample_dt,
@@ -1252,12 +1276,14 @@ class Leifer2023Preprocessor(NeuralBasePreprocessor):
         preprocess(): Preprocesses the Leifer et al., 2023 neural data and saves it as a pickle a file.
     """
 
-    def __init__(self, transform, smooth_method, interpolate_method, resample_dt, **kwargs):
+    def __init__(self, transform, normalize_first, smooth_method, interpolate_method, resample_dt, **kwargs):
         """
         Initialize the Leifer2023Preprocessor with the provided parameters.
 
         Parameters:
-            transform (object): The sklearn transformation to be applied to the data.
+            transform (object): The sklearn transformation to be applied to the
+            data.
+            normalize_first (bool): Whether to normalize the data before resampling.
             smooth_method (str): The smoothing method to apply to the data.
             interpolate_method (str): The interpolation method to use when resampling the data.
             resample_dt (float): The resampling time interval in seconds.
@@ -1266,6 +1292,7 @@ class Leifer2023Preprocessor(NeuralBasePreprocessor):
         super().__init__(
             "Leifer2023",
             transform,
+            normalize_first,
             smooth_method,
             interpolate_method,
             resample_dt,
@@ -1516,12 +1543,14 @@ class Lin2023Preprocessor(NeuralBasePreprocessor):
         preprocess(): Preprocesses the Lin et al., 2023 neural data and saves it as a pickle file.
     """
 
-    def __init__(self, transform, smooth_method, interpolate_method, resample_dt, **kwargs):
+    def __init__(self, transform, normalize_first, smooth_method, interpolate_method, resample_dt, **kwargs):
         """
         Initialize the Lin2023Preprocessor with the provided parameters.
 
         Parameters:
-            transform (object): The sklearn transformation to be applied to the data.
+            transform (object): The sklearn transformation to be applied to the
+            data.
+            normalize_first (bool): Whether to normalize the data before resampling.
             smooth_method (str): The smoothing method to apply to the data.
             interpolate_method (str): The interpolation method to use when resampling the data.
             resample_dt (float): The resampling time interval in seconds.
@@ -1530,6 +1559,7 @@ class Lin2023Preprocessor(NeuralBasePreprocessor):
         super().__init__(
             "Lin2023",
             transform,
+            normalize_first,
             smooth_method,
             interpolate_method,
             resample_dt,
@@ -1653,12 +1683,14 @@ class Venkatachalam2024Preprocessor(NeuralBasePreprocessor):
         preprocess(): Preprocesses the Venkatachalam et al., 2024 neural data and saves a pickle file.
     """
 
-    def __init__(self, transform, smooth_method, interpolate_method, resample_dt, **kwargs):
+    def __init__(self, transform, normalize_first, smooth_method, interpolate_method, resample_dt, **kwargs):
         """
         Initialize the Venkatachalam2024Preprocessor with the provided parameters.
 
         Parameters:
-            transform (object): The sklearn transformation to be applied to the data.
+            transform (object): The sklearn transformation to be applied to the
+            data.
+            normalize_first (bool): Whether to normalize the data before resampling.
             smooth_method (str): The smoothing method to apply to the data.
             interpolate_method (str): The interpolation method to use when resampling the data.
             resample_dt (float): The resampling time interval in seconds.
@@ -1667,6 +1699,7 @@ class Venkatachalam2024Preprocessor(NeuralBasePreprocessor):
         super().__init__(
             "Venkatachalam2024",
             transform,
+            normalize_first,
             smooth_method,
             interpolate_method,
             resample_dt,
