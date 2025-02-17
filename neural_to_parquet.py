@@ -86,27 +86,33 @@ def process_worm_datasets(datasets):
                 is_labeled_neuron = neuron in dataset[worm]["labeled_neuron_to_slot"]
                 is_unlabeled_neuron = neuron in dataset[worm]["unlabeled_neuron_to_slot"]
 
+                # Using these columns in the final dataset
+                # source_dataset, worm, neuron, slot, is_labeled_neuron, original_calcium_data,
+                # calcium_data, cumulative_mean, cumulative_std, smooth_method, interpolate_method,
+                # original_time_in_seconds, time_in_seconds, original_dt, dt, original_median_dt,
+                # median_dt, original_max_timesteps, max_timesteps
+                
                 data_dict.setdefault("source_dataset", []).append(dataset_name)
-                data_dict.setdefault("raw_data_file", []).append(raw_data_file)
+                # data_dict.setdefault("raw_data_file", []).append(raw_data_file)
                 data_dict.setdefault("worm", []).append(worm)
                 data_dict.setdefault("neuron", []).append(neuron)
                 data_dict.setdefault("slot", []).append(slot)
                 data_dict.setdefault("is_labeled_neuron", []).append(is_labeled_neuron)
-                data_dict.setdefault("is_unlabeled_neuron", []).append(is_unlabeled_neuron)
+                # data_dict.setdefault("is_unlabeled_neuron", []).append(is_unlabeled_neuron)
                 data_dict.setdefault("original_calcium_data", []).append(original_calcium_data)
-                
                 data_dict.setdefault("calcium_data", []).append(calcium_data)
+                
                 # Add cumulative data if we used CausalNormalizer to transform
                 if "cumulative_mean" in dataset[worm]:
                     data_dict.setdefault("cumulative_mean", []).append(cumulative_mean)
                     data_dict.setdefault("cumulative_std", []).append(cumulative_std)
                     
-                data_dict.setdefault("original_smooth_calcium_data", []).append(original_smooth_calcium_data)
-                data_dict.setdefault("smooth_calcium_data", []).append(smooth_calcium_data)
-                data_dict.setdefault("original_residual_calcium", []).append(original_residual_calcium)
-                data_dict.setdefault("residual_calcium", []).append(residual_calcium)
-                data_dict.setdefault("original_smooth_residual_calcium", []).append(original_smooth_residual_calcium)
-                data_dict.setdefault("smooth_residual_calcium", []).append(smooth_residual_calcium)
+                # data_dict.setdefault("original_smooth_calcium_data", []).append(original_smooth_calcium_data)
+                # data_dict.setdefault("smooth_calcium_data", []).append(smooth_calcium_data)
+                # data_dict.setdefault("original_residual_calcium", []).append(original_residual_calcium)
+                # data_dict.setdefault("residual_calcium", []).append(residual_calcium)
+                # data_dict.setdefault("original_smooth_residual_calcium", []).append(original_smooth_residual_calcium)
+                # data_dict.setdefault("smooth_residual_calcium", []).append(smooth_residual_calcium)
                 data_dict.setdefault("smooth_method", []).append(smooth_method)
                 data_dict.setdefault("interpolate_method", []).append(interpolate_method)
                 data_dict.setdefault("original_time_in_seconds", []).append(original_time_in_seconds)
@@ -150,8 +156,8 @@ def main():
     print(f"Saving processed data to datasets/{parquet_filename}...")
     df.to_parquet(parquet_path, index=False, engine="pyarrow")
     
-    print(f"Saving processed data to datasets/{csv_filename}...")
-    df.to_csv(csv_path)
+    # print(f"Saving processed data to datasets/{csv_filename}...")
+    # df.to_csv(csv_path)
     print("Processed data saved.")
     
     # Visualize the dataset (requires matplotlib)

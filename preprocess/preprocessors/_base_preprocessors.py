@@ -723,9 +723,10 @@ class NeuralBasePreprocessor:
             )
             resampled_dt = np.diff(resampled_time_in_seconds, axis=0, prepend=0.0)
             resampled_median_dt = np.median(resampled_dt[1:]).item()
-            # Step 4: Normalize the resampled raw data
-            norm_calcium_data = self.normalize_data(resampled_raw_calcium_data)
-            
+            # Step 4: Normalize the resampled (optionally smoothed) data
+            norm_calcium_data = self.normalize_data(resampled_smooth_calcium_data)
+            resampled_calcium_data = norm_calcium_data
+
             cumulative_data = {}
             if isinstance(self.transform, CausalNormalizer):
                 cumulative_data = {
@@ -735,7 +736,6 @@ class NeuralBasePreprocessor:
                 assert (
                     norm_calcium_data.shape == cumulative_data["cumulative_mean"].shape
                 ), "Cumulative data is misshaped"
-            resampled_calcium_data = norm_calcium_data
 
             # Validate that the resampled median dt matches the desired dt
             assert np.isclose(self.resample_dt, resampled_median_dt, atol=0.01), (
@@ -752,7 +752,7 @@ class NeuralBasePreprocessor:
 
             worm_dict = {
                 worm: {
-                    "calcium_data": resampled_calcium_data,  # normalized and resampled
+                    "calcium_data": resampled_calcium_data,  # resampled, smoothed, normalized
                     "source_dataset": self.source_dataset,
                     "dt": resampled_dt,  # vector from resampled time vector
                     "idx_to_neuron": {v: k for k, v in neuron_to_idx.items()},
@@ -766,7 +766,7 @@ class NeuralBasePreprocessor:
                     "num_neurons": int(num_neurons),
                     "num_unlabeled_neurons": num_unlabeled_neurons,
                     "original_dt": dt,  # vector from original time vector
-                    "original_calcium_data": trace_data,  # normalized (if branch A, non-resampled; if B, normalized resampled)
+                    "original_calcium_data": trace_data,  # untouched
                     **cumulative_data,  # cumulative mean and std from CausalNormalizer
                     "original_max_timesteps": int(
                         trace_data.shape[0]
