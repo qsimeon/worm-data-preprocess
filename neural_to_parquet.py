@@ -60,6 +60,7 @@ def process_worm_datasets(datasets):
                 calcium_data = dataset[worm]["calcium_data"][:, slot].numpy().astype(np.float32)
                 
                 if "cumulative_mean" in dataset[worm]:
+                    # print(f"{worm=}"dataset[worm]["cumulative_mean"].shape)
                     cumulative_mean = dataset[worm]["cumulative_mean"][:, slot].numpy().astype(np.float32)
                     cumulative_std = dataset[worm]["cumulative_std"][:, slot].numpy().astype(np.float32)
 
@@ -93,11 +94,13 @@ def process_worm_datasets(datasets):
                 data_dict.setdefault("is_labeled_neuron", []).append(is_labeled_neuron)
                 data_dict.setdefault("is_unlabeled_neuron", []).append(is_unlabeled_neuron)
                 data_dict.setdefault("original_calcium_data", []).append(original_calcium_data)
+                
                 data_dict.setdefault("calcium_data", []).append(calcium_data)
-                
-                data_dict.setdefault("cumulative_mean", []).append(cumulative_mean)
-                data_dict.setdefault("cumulative_std", []).append(cumulative_std)
-                
+                # Add cumulative data if we used CausalNormalizer to transform
+                if "cumulative_mean" in dataset[worm]:
+                    data_dict.setdefault("cumulative_mean", []).append(cumulative_mean)
+                    data_dict.setdefault("cumulative_std", []).append(cumulative_std)
+                    
                 data_dict.setdefault("original_smooth_calcium_data", []).append(original_smooth_calcium_data)
                 data_dict.setdefault("smooth_calcium_data", []).append(smooth_calcium_data)
                 data_dict.setdefault("original_residual_calcium", []).append(original_residual_calcium)
@@ -114,11 +117,6 @@ def process_worm_datasets(datasets):
                 data_dict.setdefault("median_dt", []).append(median_dt)
                 data_dict.setdefault("original_max_timesteps", []).append(original_max_timesteps)
                 data_dict.setdefault("max_timesteps", []).append(max_timesteps)
-
-                # Add cumulative data if we used CausalNormalizer to transform
-                if "cumulative_mean" in dataset[worm]:
-                    data_dict.setdefault("cumulative_mean", []).append(cumulative_mean)
-                    data_dict.setdefault("cumulative_std", []).append(cumulative_std)
 
     df = pd.DataFrame.from_dict(data_dict)
     print("Processing complete.")
@@ -149,8 +147,8 @@ def main():
         if overwrite != 'yes':
             return
 
-    # print(f"Saving processed data to datasets/{parquet_filename}...")
-    # df.to_parquet(parquet_path, index=False, engine="pyarrow")
+    print(f"Saving processed data to datasets/{parquet_filename}...")
+    df.to_parquet(parquet_path, index=False, engine="pyarrow")
     
     print(f"Saving processed data to datasets/{csv_filename}...")
     df.to_csv(csv_path)

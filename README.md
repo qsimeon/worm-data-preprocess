@@ -33,7 +33,7 @@ connectome data to be used for downstream analysis and machine learning tasks.
 
 2. To download and preprocess the neural data, run:
 ```bash
-python preprocess.py
+python preprocess.py (--verbose)
 ```
 *Downloading the neural data should take approximately 10 minutes, depending on your download speed.*
 
@@ -46,7 +46,7 @@ python preprocess.py
 4. Once you have selected the files you need, you may clear all processed and
    downloaded files using:
 ```bash
-python cleanup.py
+python cleanup.py (--force)
 ``` 
 
 *This clears around 40gb of files.*

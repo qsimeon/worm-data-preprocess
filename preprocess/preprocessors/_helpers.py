@@ -545,6 +545,7 @@ class CalciumDataReshaper:
         self.original_smooth_calcium_data = self.worm_dataset.get(
             "original_smooth_calcium_data", self.worm_dataset["smooth_calcium_data"]
         )
+        
         self.original_residual_calcium = self.worm_dataset.get(
             "original_residual_calcium", self.worm_dataset["residual_calcium"]
         )

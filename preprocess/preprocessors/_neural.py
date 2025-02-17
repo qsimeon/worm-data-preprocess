@@ -45,6 +45,8 @@ class Kato2015Preprocessor(NeuralBasePreprocessor):
             resample_dt,
             **kwargs,
         )
+        self.citation = "Kato, S., Kaplan, H. S., Schrödel, T., Skora, S., Lindsay, T. H., Yemini, E., Lockery, S., & Zimmer, M. (2015). Global brain dynamics embed the motor command sequence of Caenorhabditis elegans. Cell, 163(3), 656–669. https://doi.org/10.1016/j.cell.2015.09.034"
+        
     def extract_data(self, arr):
         """
         Extracts neuron IDs, calcium traces, and time vector from the loaded data array.
