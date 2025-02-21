@@ -1,24 +1,22 @@
 # Module Information
 
-This repository contains the functions used to preprocess the open-source calcium imaging data for neural activity analysis. The datasets are preprocessed and organized in a standard manner, making them ready to be used for various tasks such as neural network training, data analysis, and visualization.
+This repository contains the functions used to preprocess the open-source calcium imaging data for neural activity analysis.
 
 ## File Structure
 
 The submodule consists of the following files:
-
-- `_main.py`: Contains the pipeline for preprocessing the data as specified in the configuration file.
-- `_utils.py`: Contains utility functions and classes for data processing.
+- `_config.py`: Contains configuration settings and parameters for preprocessing.
+- `_main.py`: Contains the overarching logic for preprocessing the data as specified in the configuration file.
+- `_utils.py`: Contains a number of main utility functions for beginning preprocessing.
 - `_pkg.py`: Contains the necessary imports for the submodule.
+- `preprocess/_base_preprocessors.py`: Contains the base preprocessing classes from which all dataset-specific preprocessors inherit their methods.
+- `preprocess/_neural.py`: Contains all the neural-specific preprocessors (unconcerned with connectome data).
+- `preprocess/_helpers.py`: Contains helper functions used across different preprocessing classes.
+
 
 ## Usage
 
-To use the submodule, follow these steps:
-
-1. Install the required Python dependencies as explained in the `setup` folder.
-2. Modify the configuration file in `configs/submodule/preprocess.yaml` as desired (see the explanation of each parameter in the configs submodule README).
-3. Run the main pipeline: `python main.py +submodule=preprocess`.
-4. The processed dataset will be saved in pickle format in the `data/processed/neural` folder.
-5. Load the preprocessed data using our `data` submodule and have fun!
+TODO:
 
 ## Datasets
 
@@ -32,9 +30,13 @@ The following datasets are included in this submodule:
 - `Leifer2023`: Calcium imaging data from **41** *C. elegans* individuals.
 - `Flavell2023`: Calcium imaging data from **10** *C. elegans* individuals.
 
+TODO: more than this
+
 ### Dataset Structure
 
-Each dataset is stored in a Python dictionary:
+TODO: ensure these are up to date
+
+Each dataset is stored in a Python dictionary: 
 
 <details>
 <summary>Here you will find its list of features</summary>
@@ -76,13 +78,11 @@ The datasets have been preprocessed using Python scripts available in this repos
 
 - Loading raw data in various formats (MATLAB files, JSON files, etc.).
 - Extracting relevant data fields (neuron IDs, traces, time vectors, etc.).
-- Cleaning and normalizing the data.
+- Cleaning data
 - Resampling the data to a common time resolution. - if requested
-- Smoothing the data using different methods (e.g., Savitzky-Golay filter). - if requested
+- Smoothing the data using different methods - if requested
+- Normalizing data
 - Creating dictionaries to map neuron indices to neuron IDs and vice versa.
 - Saving the preprocessed data in a standardized format.
 
-## Customization
-
-The submodule is designed to be easily customizable. You can modify the `_main.py` script to customize the data preprocessing process or add additional functionality. The `_utils.py` file contains utility functions and classes that can be modified as per your requirements.
 

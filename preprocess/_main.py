@@ -35,7 +35,6 @@ def process_data(config: dict) -> None:
         )
         # allow user to select transform and normalization order
         transform = CausalNormalizer() if config["norm_transform"] == "causal" else StandardScaler()
-        normalize_first = config["normalize_first"]
         
         start_time = time.time()
         pickle_neural_data(
@@ -43,7 +42,6 @@ def process_data(config: dict) -> None:
             zipfile=config["opensource_neural_zipfile"],
             source_dataset=config["source_dataset"],
             transform=transform, # New in preprint
-            normalize_first=normalize_first,
             smooth_method=config["smooth"]["method"],
             resample_dt=config["resample_dt"],
             interpolate_method=config["interpolate"],

@@ -245,7 +245,6 @@ class NeuralBasePreprocessor:
         source_dataset (str): The specific source dataset to be preprocessed.
         transform (object): The sklearn transformation to be applied to the
         data.
-        normalize_first (bool): Indicates whether normalization is done before
         or after resampling
         smooth_method (str): The smoothing method to apply to the data.
         resample_dt (float): The resampling time interval in seconds.
@@ -279,7 +278,6 @@ class NeuralBasePreprocessor:
         self,
         source_dataset,
         transform=CausalNormalizer(),  # StandardScaler() #PowerTransformer() #CausalNormalizer() #None
-        normalize_first=False,
         smooth_method="none",
         interpolate_method="linear",
         resample_dt=0.1,
@@ -298,7 +296,6 @@ class NeuralBasePreprocessor:
         """
         self.source_dataset = source_dataset
         self.transform = transform
-        self.normalize_first = normalize_first
         self.smooth_method = smooth_method
         self.interpolate_method = interpolate_method
         self.resample_dt = resample_dt

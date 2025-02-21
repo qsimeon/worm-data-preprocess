@@ -80,15 +80,14 @@ def process_single_dataset(args):
     """Helper function to process a single dataset
 
     Args:
-        args (tuple): (source, transform, normalize_first smooth_method, interpolate_method, resample_dt, kwargs)
+        args (tuple): (source, transform, smooth_method, interpolate_method, resample_dt, kwargs)
     """
-    source, transform, normalize_first, smooth_method, interpolate_method, resample_dt, kwargs = args
+    source, transform, smooth_method, interpolate_method, resample_dt, kwargs = args
     try:
         logger.info(f"Start processing {source}.")
         # Instantiate the relevant preprocessor class (dynamic class evaluation)
         preprocessor = eval(source + "Preprocessor")(
             transform,
-            normalize_first,
             smooth_method,
             interpolate_method,
             resample_dt,
@@ -110,7 +109,6 @@ def pickle_neural_data(
     zipfile,
     source_dataset="all",
     transform=StandardScaler(),
-    normalize_first=False,
     smooth_method="none",
     interpolate_method="linear",
     resample_dt=None,
@@ -133,7 +131,6 @@ def pickle_neural_data(
             If None or 'all', all datasets are pickled. Default is 'all'.
         transform (object, optional): The sklearn transformation to be applied to the data.
             Default is StandardScaler()
-        normalize_first (bool): Indicates whether normalization is done before or after resampling
         smooth_method (str, optional): The smoothing method to apply to the data;
             options are 'gaussian', 'exponential', or 'moving'. Default is 'moving'.
         interpolate_method (str, optional): The scipy interpolation method to use when resampling the data.
@@ -216,7 +213,7 @@ def pickle_neural_data(
         # Prepare arguments for each dataset
         # All datasets prepared using same smoothing, interpolation, and resampling
         process_args = [
-            (source, transform, normalize_first, smooth_method, interpolate_method, resample_dt, kwargs)
+            (source, transform, smooth_method, interpolate_method, resample_dt, kwargs)
             for source in EXPERIMENT_DATASETS
         ]
         
@@ -243,7 +240,7 @@ def pickle_neural_data(
             list(EXPERIMENT_DATASETS)
         )
         process_single_dataset(
-            (source_dataset, transform, normalize_first, smooth_method, interpolate_method, resample_dt, kwargs)
+            (source_dataset, transform, smooth_method, interpolate_method, resample_dt, kwargs)
         )
 
     # Delete the unzipped folder
