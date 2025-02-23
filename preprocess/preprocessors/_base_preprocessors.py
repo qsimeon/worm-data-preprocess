@@ -725,11 +725,13 @@ class NeuralBasePreprocessor:
             resampled_calcium_data = norm_calcium_data
 
             cumulative_data = {}
+            normalization_method = "standard"
             if isinstance(self.transform, CausalNormalizer):
                 cumulative_data = {
                     "cumulative_mean": self.transform.cumulative_mean_,
                     "cumulative_std": self.transform.cumulative_std_,
                 }
+                normalization_method = "causal"
                 assert (
                     norm_calcium_data.shape == cumulative_data["cumulative_mean"].shape
                 ), "Cumulative data is misshaped"
@@ -765,6 +767,7 @@ class NeuralBasePreprocessor:
                     "original_dt": dt,  # vector from original time vector
                     "original_calcium_data": trace_data,  # untouched
                     **cumulative_data,  # cumulative mean and std from CausalNormalizer
+                    "normalization_method": normalization_method,
                     "original_max_timesteps": int(
                         trace_data.shape[0]
                     ),  # scalar from original time vector

@@ -55,9 +55,11 @@ def process_worm_datasets(datasets):
         "is_unlabeled_neuron",
         "smooth_method",
         "interpolate_method",  
-        # to include: normalize_method
+        "normalization_method", # Standard or Causal
         "original_calcium_data",
         "calcium_data",
+        "cumulative_mean",
+        "cumulative_std",
         "original_time_in_seconds",
         "time_in_seconds",
         "original_max_timesteps",
@@ -88,7 +90,8 @@ def process_worm_datasets(datasets):
                     dataset[worm]["calcium_data"][:, slot].numpy().astype(np.float32)
                 )
 
-                if "cumulative_mean" in dataset[worm]:
+                normalization_method = dataset[worm]["normalization_method"]
+                if normalization_method == "causal":
                     cumulative_mean = (
                         dataset[worm]["cumulative_mean"][:, slot]
                         .numpy()
@@ -162,6 +165,7 @@ def process_worm_datasets(datasets):
                     neuron in dataset[worm]["unlabeled_neuron_to_slot"]
                 )
 
+                # all the columns from `preprocess_traces` worm dict in NeuralBaseProcessor
                 all_columns = {
                     "source_dataset": dataset_name,
                     "raw_data_file": raw_data_file,
@@ -172,8 +176,17 @@ def process_worm_datasets(datasets):
                     "is_unlabeled_neuron": is_unlabeled_neuron,
                     "smooth_method": smooth_method,
                     "interpolate_method": interpolate_method,
+                    "normalization_method": normalization_method,
                     "original_calcium_data": original_calcium_data,
                     "calcium_data": calcium_data,
+                    "cumulative_mean": cumulative_mean
+                    if "cumulative_mean" in dataset[worm]
+                    else None,
+                    
+                    "cumulative_std": cumulative_std
+                    if "cumulative_std" in dataset[worm]
+                    else None,
+                    
                     "original_smooth_calcium_data": original_smooth_calcium_data,
                     "smooth_calcium_data": smooth_calcium_data,
                     "original_residual_calcium": original_residual_calcium,
@@ -188,16 +201,10 @@ def process_worm_datasets(datasets):
                     "median_dt": median_dt,
                     "original_max_timesteps": original_max_timesteps,
                     "max_timesteps": max_timesteps,
-                    "cumulative_mean": cumulative_mean
-                    if "cumulative_mean" in dataset[worm]
-                    else None,
-                    "cumulative_std": cumulative_std
-                    if "cumulative_std" in dataset[worm]
-                    else None,
                 }
 
                 for column, value in all_columns.items():
-                    if column in desired_columns:
+                    if column in desired_columns and value is not None:
                         data_dict.setdefault(column, []).append(value)
 
     df = pd.DataFrame.from_dict(data_dict)

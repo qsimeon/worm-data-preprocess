@@ -53,5 +53,5 @@ PREPROCESS_CONFIG = {
         "window_size": 15
     },
     # Type of normalization transformation used (causal/standard)
-    "norm_transform": "causal", 
+    "norm_transform": "standard", 
 }
