@@ -19,7 +19,7 @@ PREPROCESS_CONFIG = {
         "Lin2023",
         "Flavell2023",  # TODO: Something is wrong with worm0 in this dataset. Specifically, "worm0" is always absent. Why?
         "Venkatachalam2024",  # This is unpublished data. Downloaded from chemosensory-data.worm.world/.
-    ][4:5],
+    ][:],
     
     ## PREPROCESSED DATA (for training models)
     # URL to download pre-processed datasets
@@ -34,7 +34,7 @@ PREPROCESS_CONFIG = {
     # Whether to delete downloaded data after processing
     "cleanup": False,
     # Elect to use multithreading for parallel processing (recommended: True)
-    "use_multithreading": False,
+    "use_multithreading": True,
     # Dataset selection ('all' or specific dataset names)
     "source_dataset": "all",
     # Time interval in seconds for resampling neural activity

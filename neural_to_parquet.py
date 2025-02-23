@@ -45,84 +45,160 @@ def process_worm_datasets(datasets):
     data_dict = {}
     progress_bar = tqdm(datasets)
 
+    desired_columns = {
+        "source_dataset",
+        "raw_data_file",
+        "worm",
+        "neuron",
+        "slot",
+        "is_labeled_neuron",
+        "is_unlabeled_neuron",
+        "smooth_method",
+        "interpolate_method",  
+        # to include: normalize_method
+        "original_calcium_data",
+        "calcium_data",
+        "original_time_in_seconds",
+        "time_in_seconds",
+        "original_max_timesteps",
+        "max_timesteps",
+    }
+
     for dataset in progress_bar:
         for worm in dataset:
-            progress_bar.set_description(f"Processing {dataset[worm]['source_dataset']}")
+            progress_bar.set_description(
+                f"Processing {dataset[worm]['source_dataset']}"
+            )
             for neuron, slot in dataset[worm]["neuron_to_slot"].items():
                 slot = np.intc(slot)
                 dataset_name = dataset[worm]["source_dataset"]
                 raw_data_file = dataset[worm]["extra_info"]["data_file"]
                 smooth_method = dataset[worm]["smooth_method"]
-                smooth_method = "no smoothing" if smooth_method is None else smooth_method.lower()
+                smooth_method = (
+                    "no smoothing" if smooth_method is None else smooth_method.lower()
+                )
                 interpolate_method = dataset[worm]["interpolate_method"]
 
-                original_calcium_data = dataset[worm]["original_calcium_data"][:, slot].numpy().astype(np.float32)
-                calcium_data = dataset[worm]["calcium_data"][:, slot].numpy().astype(np.float32)
-                
+                original_calcium_data = (
+                    dataset[worm]["original_calcium_data"][:, slot]
+                    .numpy()
+                    .astype(np.float32)
+                )
+                calcium_data = (
+                    dataset[worm]["calcium_data"][:, slot].numpy().astype(np.float32)
+                )
+
                 if "cumulative_mean" in dataset[worm]:
-                    # print(f"{worm=}"dataset[worm]["cumulative_mean"].shape)
-                    cumulative_mean = dataset[worm]["cumulative_mean"][:, slot].numpy().astype(np.float32)
-                    cumulative_std = dataset[worm]["cumulative_std"][:, slot].numpy().astype(np.float32)
+                    cumulative_mean = (
+                        dataset[worm]["cumulative_mean"][:, slot]
+                        .numpy()
+                        .astype(np.float32)
+                    )
+                    cumulative_std = (
+                        dataset[worm]["cumulative_std"][:, slot]
+                        .numpy()
+                        .astype(np.float32)
+                    )
 
                 if all_zeros(calcium_data):
                     continue
 
-                original_smooth_calcium_data = dataset[worm]["original_smooth_calcium_data"][:, slot].numpy().astype(np.float32)
-                smooth_calcium_data = dataset[worm]["smooth_calcium_data"][:, slot].numpy().astype(np.float32)
-                original_residual_calcium = dataset[worm]["original_residual_calcium"][:, slot].numpy().astype(np.float32)
-                residual_calcium = dataset[worm]["residual_calcium"][:, slot].numpy().astype(np.float32)
-                original_smooth_residual_calcium = dataset[worm]["original_smooth_residual_calcium"][:, slot].numpy().astype(np.float32)
-                smooth_residual_calcium = dataset[worm]["smooth_residual_calcium"][:, slot].numpy().astype(np.float32)
+                original_smooth_calcium_data = (
+                    dataset[worm]["original_smooth_calcium_data"][:, slot]
+                    .numpy()
+                    .astype(np.float32)
+                )
+                smooth_calcium_data = (
+                    dataset[worm]["smooth_calcium_data"][:, slot]
+                    .numpy()
+                    .astype(np.float32)
+                )
+                original_residual_calcium = (
+                    dataset[worm]["original_residual_calcium"][:, slot]
+                    .numpy()
+                    .astype(np.float32)
+                )
+                residual_calcium = (
+                    dataset[worm]["residual_calcium"][:, slot]
+                    .numpy()
+                    .astype(np.float32)
+                )
+                original_smooth_residual_calcium = (
+                    dataset[worm]["original_smooth_residual_calcium"][:, slot]
+                    .numpy()
+                    .astype(np.float32)
+                )
+                smooth_residual_calcium = (
+                    dataset[worm]["smooth_residual_calcium"][:, slot]
+                    .numpy()
+                    .astype(np.float32)
+                )
 
-                original_time_in_seconds = dataset[worm]["original_time_in_seconds"].squeeze().numpy().astype(np.float32)
-                time_in_seconds = dataset[worm]["time_in_seconds"].squeeze().numpy().astype(np.float32)
-                original_dt = dataset[worm]["original_dt"].squeeze().numpy().astype(np.float32)
+                original_time_in_seconds = (
+                    dataset[worm]["original_time_in_seconds"]
+                    .squeeze()
+                    .numpy()
+                    .astype(np.float32)
+                )
+                time_in_seconds = (
+                    dataset[worm]["time_in_seconds"]
+                    .squeeze()
+                    .numpy()
+                    .astype(np.float32)
+                )
+                original_dt = (
+                    dataset[worm]["original_dt"].squeeze().numpy().astype(np.float32)
+                )
                 dt = dataset[worm]["dt"].squeeze().numpy().astype(np.float32)
                 original_median_dt = np.float32(dataset[worm]["original_median_dt"])
                 median_dt = np.float32(dataset[worm]["median_dt"])
-                original_max_timesteps = np.intc(dataset[worm]["original_max_timesteps"])
+                original_max_timesteps = np.intc(
+                    dataset[worm]["original_max_timesteps"]
+                )
                 max_timesteps = np.intc(dataset[worm]["max_timesteps"])
 
                 is_labeled_neuron = neuron in dataset[worm]["labeled_neuron_to_slot"]
-                is_unlabeled_neuron = neuron in dataset[worm]["unlabeled_neuron_to_slot"]
+                is_unlabeled_neuron = (
+                    neuron in dataset[worm]["unlabeled_neuron_to_slot"]
+                )
 
-                # Using these columns in the final dataset
-                # source_dataset, worm, neuron, slot, is_labeled_neuron, original_calcium_data,
-                # calcium_data, cumulative_mean, cumulative_std, smooth_method, interpolate_method,
-                # original_time_in_seconds, time_in_seconds, original_dt, dt, original_median_dt,
-                # median_dt, original_max_timesteps, max_timesteps
-                
-                data_dict.setdefault("source_dataset", []).append(dataset_name)
-                # data_dict.setdefault("raw_data_file", []).append(raw_data_file)
-                data_dict.setdefault("worm", []).append(worm)
-                data_dict.setdefault("neuron", []).append(neuron)
-                data_dict.setdefault("slot", []).append(slot)
-                data_dict.setdefault("is_labeled_neuron", []).append(is_labeled_neuron)
-                # data_dict.setdefault("is_unlabeled_neuron", []).append(is_unlabeled_neuron)
-                data_dict.setdefault("original_calcium_data", []).append(original_calcium_data)
-                data_dict.setdefault("calcium_data", []).append(calcium_data)
-                
-                # Add cumulative data if we used CausalNormalizer to transform
-                if "cumulative_mean" in dataset[worm]:
-                    data_dict.setdefault("cumulative_mean", []).append(cumulative_mean)
-                    data_dict.setdefault("cumulative_std", []).append(cumulative_std)
-                    
-                # data_dict.setdefault("original_smooth_calcium_data", []).append(original_smooth_calcium_data)
-                # data_dict.setdefault("smooth_calcium_data", []).append(smooth_calcium_data)
-                # data_dict.setdefault("original_residual_calcium", []).append(original_residual_calcium)
-                # data_dict.setdefault("residual_calcium", []).append(residual_calcium)
-                # data_dict.setdefault("original_smooth_residual_calcium", []).append(original_smooth_residual_calcium)
-                # data_dict.setdefault("smooth_residual_calcium", []).append(smooth_residual_calcium)
-                data_dict.setdefault("smooth_method", []).append(smooth_method)
-                data_dict.setdefault("interpolate_method", []).append(interpolate_method)
-                data_dict.setdefault("original_time_in_seconds", []).append(original_time_in_seconds)
-                data_dict.setdefault("time_in_seconds", []).append(time_in_seconds)
-                data_dict.setdefault("original_dt", []).append(original_dt)
-                data_dict.setdefault("dt", []).append(dt)
-                data_dict.setdefault("original_median_dt", []).append(original_median_dt)
-                data_dict.setdefault("median_dt", []).append(median_dt)
-                data_dict.setdefault("original_max_timesteps", []).append(original_max_timesteps)
-                data_dict.setdefault("max_timesteps", []).append(max_timesteps)
+                all_columns = {
+                    "source_dataset": dataset_name,
+                    "raw_data_file": raw_data_file,
+                    "worm": worm,
+                    "neuron": neuron,
+                    "slot": slot,
+                    "is_labeled_neuron": is_labeled_neuron,
+                    "is_unlabeled_neuron": is_unlabeled_neuron,
+                    "smooth_method": smooth_method,
+                    "interpolate_method": interpolate_method,
+                    "original_calcium_data": original_calcium_data,
+                    "calcium_data": calcium_data,
+                    "original_smooth_calcium_data": original_smooth_calcium_data,
+                    "smooth_calcium_data": smooth_calcium_data,
+                    "original_residual_calcium": original_residual_calcium,
+                    "residual_calcium": residual_calcium,
+                    "original_smooth_residual_calcium": original_smooth_residual_calcium,
+                    "smooth_residual_calcium": smooth_residual_calcium,
+                    "original_time_in_seconds": original_time_in_seconds,
+                    "time_in_seconds": time_in_seconds,
+                    "original_dt": original_dt,
+                    "dt": dt,
+                    "original_median_dt": original_median_dt,
+                    "median_dt": median_dt,
+                    "original_max_timesteps": original_max_timesteps,
+                    "max_timesteps": max_timesteps,
+                    "cumulative_mean": cumulative_mean
+                    if "cumulative_mean" in dataset[worm]
+                    else None,
+                    "cumulative_std": cumulative_std
+                    if "cumulative_std" in dataset[worm]
+                    else None,
+                }
+
+                for column, value in all_columns.items():
+                    if column in desired_columns:
+                        data_dict.setdefault(column, []).append(value)
 
     df = pd.DataFrame.from_dict(data_dict)
     print("Processing complete.")

@@ -55,5 +55,6 @@ def process_data(config: dict) -> None:
         logger.info(f"Finished preprocessing neural data in {end_time - start_time:.2f} seconds.")
     else:
         logger.info("Neural data already preprocessed.")
+        logger.info("Run `python cleanup.py` to delete previous preprocessed files.")
 
     return None
