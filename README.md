@@ -37,8 +37,7 @@ python preprocess.py (--verbose)
 ```
 *Downloading the neural data should take approximately 10 minutes, depending on your download speed.*
 
-*Preprocessing all the data should take approximately 12 mins to run, depending*
-*on your hardware. We recommend enabling multithreading in the `config.py` file to speed this up.*
+*Preprocessing all the data takes approximately 11 mins to run on an M2 MacBook Pro, but will be highly dependent on your on your hardware. We recommend enabling multithreading in the `config.py` file to make this as fast as possible.*
 
 3. Once the data has been preprocessed, you will find the processed data in
    `data/processed/`
@@ -64,6 +63,24 @@ available on the associated HuggingFace repo.
 python neural_to_parqet.py
 ``` 
 2. Access the generated parqet file at `data/datasets/preprocessed_worm_data_short.parqet`
+
+---
+
+## Preliminary Data Analysis
+
+**Data Analysis Notebook**
+
+<a target="_blank" href="https://colab.research.google.com/github/https://colab.research.google.com/drive/1I-8zUmtZ6dnAxf4nn2qMOXkpYwb4m6Xh?usp=sharing">
+  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+</a>
+
+--
+
+**Neural Modeling Notebook**
+
+<a target="_blank" href="https://colab.research.google.com/github/https://colab.research.google.com/drive/1DX0fPj0-pJYek48Xdmjpz42OjJzsaF9v?usp=sharing">
+  <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+</a>
 
 ---
 
