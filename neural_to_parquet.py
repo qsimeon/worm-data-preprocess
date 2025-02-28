@@ -220,27 +220,51 @@ def process_worm_datasets(datasets):
 def main():
     init_random_seeds(42)
     
+    # Prompt user for file name
+    name = input("What would you like to name your saved dataset? processed_worm_data_").strip()
+    if not name:
+        print("Invalid file name. Exiting.")
+        return
+
+    # Prompt user for file format
+    save_option = input(
+        "Select file format to save: \n'0' for .parquet \n'1' for .csv \n'2' for .both: "
+    ).strip()
+    if save_option not in {"0", "1", "2"}:
+        print("Invalid option. Exiting.")
+        return
+
     datasets = load_all_worm_datasets()
     df = process_worm_datasets(datasets)
 
-    # Save to parquet and csv (for viewing locally)
+    # Save to parquet and/or csv (for viewing locally)
     os.makedirs(os.path.join(ROOT_DIR, "datasets"), exist_ok=True)
-    parquet_filename = "processed_worm_data_short.parquet"
-    csv_filename = "processed_worm_data_short.csv"
+    parquet_filename = f"processed_worm_data_{name}.parquet"
+    csv_filename = f"processed_worm_data_{name}.csv"
     parquet_path = os.path.join(ROOT_DIR, "datasets", parquet_filename)
     csv_path = os.path.join(ROOT_DIR, "datasets", csv_filename)
-    if os.path.exists(parquet_path) and os.path.exists(csv_path):
-        overwrite = input(f"File datasets/{parquet_filename} and datasets/{csv_filename} already exists. Would you like to overwrite it? (yes/no): ").strip().lower()
-        if overwrite != 'yes':
+
+    if os.path.exists(parquet_path) or os.path.exists(csv_path):
+        overwrite = (
+            input(
+                f"File datasets/{parquet_filename} or datasets/{csv_filename} already exists. Would you like to overwrite it? (yes/no): "
+            )
+            .strip()
+            .lower()
+        )
+        if overwrite != "yes":
             return
 
-    print(f"Saving processed data to datasets/{parquet_filename}...")
-    df.to_parquet(parquet_path, index=False, engine="pyarrow")
-    
-    # print(f"Saving processed data to datasets/{csv_filename}...")
-    # df.to_csv(csv_path)
+    if save_option in {"0", "2"}:
+        print(f"Saving processed data to datasets/{parquet_filename}...")
+        df.to_parquet(parquet_path, index=False, engine="pyarrow")
+
+    if save_option in {"1", "2"}:
+        print(f"Saving processed data to datasets/{csv_filename}...")
+        df.to_csv(csv_path, index=False)
+
     print("Processed data saved.")
-    
+
     # Visualize the dataset (requires matplotlib)
     # visualize_data(df)
 
