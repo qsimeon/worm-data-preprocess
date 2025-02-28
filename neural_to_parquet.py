@@ -58,8 +58,6 @@ def process_worm_datasets(datasets):
         "normalization_method", # Standard or Causal
         "original_calcium_data",
         "calcium_data",
-        "cumulative_mean",
-        "cumulative_std",
         "original_time_in_seconds",
         "time_in_seconds",
         "original_max_timesteps",
