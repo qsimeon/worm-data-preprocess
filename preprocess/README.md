@@ -16,59 +16,80 @@ The submodule consists of the following files:
 
 ## Usage
 
-TODO:
+Please refer to the `README.md` in the root directory for information on how to
+process the data.
 
 ## Datasets
 
 The following datasets are included in this submodule:
 
-- `Kato2015`: Calcium imaging data from **12** *C. elegans* individuals.
-- `Nichols2017`: Calcium imaging data from **44** *C. elegans* individuals.
-- `Skora2018`: Calcium imaging data from **12** *C. elegans* individuals.
-- `Kaplan2020`: Calcium imaging data from **19** *C. elegans* individuals.
-- `Uzel2022`: Calcium imaging data from **6** *C. elegans* individuals.
-- `Leifer2023`: Calcium imaging data from **41** *C. elegans* individuals.
-- `Flavell2023`: Calcium imaging data from **10** *C. elegans* individuals.
-
-TODO: more than this
+| Index | Dataset Name         | Num. Worms | Mean Num. Neurons (labeled, recorded)
+|-------|----------------------|------------|--------------------------------------|
+| 1     | `Kato2015  `       | 12         | (42, 127)                            |
+| 2     | `Nichols2017`      | 44         | (34, 108)                            |
+| 3     | `Skora2018`        | 12         | (46, 129)                            |
+| 4     |` Kaplan2020   `    | 19         | (36, 114)                            |
+| 5     | `Yemini2021 `      | 49         | (110, 125)                           |
+| 6     | `Uzel2022    `     | 6          | (50, 138)                            |
+| 7     | `Dag2023`         | 7          | (100, 143)                           |
+| 8     | `Atanas2023`      | 42         | (88, 136)                            |
+| 9     | `Leifer2023`      | 103        | (69, 122)                            |
+| 10    | `Lin2023`         | 577        | (8, 8)                               |
+| 11    | `Flavell2023`         | 40        | (89, TODO:)                               |
+| 12    | `Venkatachalam2024` | 22        | (187, 187)                          | 
 
 ### Dataset Structure
 
-TODO: ensure these are up to date
-
-Each dataset is stored in a Python dictionary: 
+Each dataset is stored in a Python dictionary of the following form:
+```python
+data_dict = {
+    "worm0": { ... },
+    "worm1": { ... },
+    "...":   { ... },
+    "wormN": { ... },
+}
+```
 
 <details>
-<summary>Here you will find its list of features</summary>
+<summary>Here is information about all the data associated with each worm</summary>
+Each worm (`worm0`, `worm1`, ..., `wormN`) is a dictionary containing:
 
-- `source_dataset`: (str) Name of the dataset
-- `smooth_method`: (str) Method used to smooth the calcium data
-- `interpolate_method`: (std) Method used to interpolate the calcium data
-- `worm`: (str) The worm ID in the COMBINED dataset (if you load more than one dataset)
-- `original_worm`: (str) The worm ID in the original dataset (when you load a single dataset)
-- `original_max_timesteps`: (int) Number of time steps before resampling
-- `max_timesteps`: (int) Number of time steps after resampling
-- `original_dt`: (torch.tensor) Column vector containing the difference between time steps (before resampling). Shape: (original_max_timesteps, 1)
-- `original_median_dt`: (float) The median `dt` of the original time series
-- `dt`: (torch.tensor) Column vector containing the difference between time steps. Shape: (max_timesteps, 1)
-- `residual_` and `original_calcium_data`: (torch.tensor) Standardized and normalized calcium data. Shape: (original_max_timesteps, `NUM_NEURONS`)
-- `residual_` and `calcium_data`: (torch.tensor) Standardized, normalized and resampled calcium data. Shape: (max_timesteps, `NUM_NEURONS`)
-- `residual_` and `original_smooth_calcium_data`: (torch.tensor) Standardized, smoothed and normalized calcium data. Shape: (original_max_timesteps, `NUM_NEURONS`)
-- `residual_` and `smooth_calcium_data`: (torch.tensor) Standardized, smoothed, normalized and resampled calcium data. Shape: (max_timesteps, `NUM_NEURONS`)
-- `original_time_in_seconds`: (torch.tensor) A column vector with the original time recording times (without resampling). Shape: (original_max_timesteps, 1)
-- `time_in_seconds`: (torch.tensor) A column vector equally spaced by dt after resampling. Shape: (max_timesteps, 1)
-- `num_neurons`: (int) Number of total tracked neurons of this specific worm
-- `num_labeled_neurons`: (int) Number of labeled neurons
-- `num_unlabeled_neurons`: (int) Number of unlabeled neurons
-- `labeled_neurons_mask`: (torch.tensor) A bool vector indicating the positions of the labeled neurons. Shape: (`NUM_NEURONS`)
-- `unlabeled_neurons_mask`: (torch.tensor) A bool vector indicating the positions of the unlabeled neurons. Shape: (`NUM_NEURONS`)
-- `neurons_mask`: (torch.tensor) A bool vector indicating the positions of all tracked neurons (labeled + unlabeled). Shape: (`NUM_NEURONS`)
-- `slot_to_labeled_neuron`: (dict) Mapping of column index -> `NUM_NEURONS` neurons. Len: num_neurons
-- `labeled_neuron_to_slot`: (dict) Mapping of `NUM_NEURONS` neurons -> column index. Len: num_neurons
-- `slot_to_unlabeled_neuron`: (dict) Mapping of column index -> unlabeled neuron. Len: num_unlabeled_neurons
-- `unlabeled_neuron_to_slot`: (dict) Mapping of unlabeled neurons -> column index. Len: num_unlabeled_neurons
-- `slot_to_neuron`: (dict) Mapping of column index -> labeled+unlabeled neurons. Len: num_neurons
-- `neuron_to_slot`: (dict) Mapping of labeled+unlabeled neurons -> column index. Len: num_neurons
+| Column                                | Type            | Description                 |
+|---------------------------------------|-----------------|-----------------------------|
+| `calcium_data`                        | torch.Tensor    | Normalized, resampled data  |
+| `source_dataset`                      | str             | Source dataset name         |
+| `dt`                                  | torch.Tensor    | Time deltas (resampled)     |
+| `interpolate_method`                  | str             | Interpolation method        |
+| `max_timesteps`                       | int             | Timesteps after resampling  |
+| `median_dt`                           | float           | Median of resampled dt      |
+| `num_labeled_neurons`                 | int             | Count labeled neurons       |
+| `num_neurons`                         | int             | Total neuron count          |
+| `num_unlabeled_neurons`               | int             | Count unlabeled neurons     |
+| `original_dt`                         | torch.Tensor    | Original time deltas        |
+| `original_calcium_data`               | torch.Tensor    | Raw calcium data            |
+| `normalization_method`                | str             | Normalization method        |
+| `original_max_timesteps`              | int             | Timesteps before resampling |
+| `original_median_dt`                  | float           | Median original dt          |
+| `original_residual_calcium`           | torch.Tensor    | Original residual data      |
+| `original_smooth_calcium_data`        | torch.Tensor    | Smoothed original data      |
+| `original_smooth_residual_calcium`    | torch.Tensor    | Smoothed original residuals |
+| `original_time_in_seconds`            | torch.Tensor    | Original timestamps         |
+| `residual_calcium`                    | torch.Tensor    | Residual calcium data       |
+| `smooth_calcium_data`                 | torch.Tensor    | Smoothed calcium data       |
+| `smooth_method`                       | str             | Smoothing method            |
+| `smooth_residual_calcium`             | torch.Tensor    | Smoothed residual data      |
+| `time_in_seconds`                     | torch.Tensor    | Resampled timestamps        |
+| `worm`                                | str             | Worm identifier             |
+| `extra_info`                          | dict            | Additional metadata         |
+| `labeled_neuron_to_slot`              | dict            | Labeled neuron → index      |
+| `labeled_neurons_mask`                | torch.Tensor    | Mask for labeled neurons    |
+| `neuron_to_slot`                      | dict            | Neuron → index mapping      |
+| `neurons_mask`                        | torch.Tensor    | Mask for all neurons        |
+| `slot_to_labeled_neuron`              | dict            | Index → labeled neuron      |
+| `slot_to_neuron`                      | dict            | Index → neuron mapping      |
+| `slot_to_unlabeled_neuron`            | dict            | Index → unlabeled neuron    |
+| `unlabeled_neuron_to_slot`            | dict            | Unlabeled neuron → index    |
+| `unlabeled_neurons_mask`              | torch.Tensor    | Mask for unlabeled neurons  |
 
 </details>
 
@@ -76,13 +97,13 @@ Each dataset is stored in a Python dictionary:
 
 The datasets have been preprocessed using Python scripts available in this repository. The preprocessing steps include:
 
-- Loading raw data in various formats (MATLAB files, JSON files, etc.).
-- Extracting relevant data fields (neuron IDs, traces, time vectors, etc.).
-- Cleaning data
-- Resampling the data to a common time resolution. - if requested
-- Smoothing the data using different methods - if requested
-- Normalizing data
-- Creating dictionaries to map neuron indices to neuron IDs and vice versa.
-- Saving the preprocessed data in a standardized format.
+1. **Loading** raw data in various formats (MATLAB files, JSON files, etc.).
+1. Extracting relevant data fields (neuron IDs, traces, time vectors, etc.).
+1. Cleaning data
+1. **Resampling** the data to a common time resolution. - if requested
+1. **Smoothing** the data using different methods - if requested
+1. **Normalizing** data
+1. Creating dictionaries to map neuron indices to neuron IDs and vice versa.
+1. Saving the preprocessed data into a standardized format.
 
 
