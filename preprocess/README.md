@@ -21,7 +21,7 @@ process the data.
 
 ## Datasets
 
-The following datasets are included in this submodule:
+The following datasets are included:
 
 | Index | Dataset Name         | Num. Worms | Mean Num. Neurons (labeled, recorded)
 |-------|----------------------|------------|--------------------------------------|
