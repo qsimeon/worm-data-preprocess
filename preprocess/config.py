@@ -7,17 +7,17 @@ PREPROCESS_CONFIG = {
     # Set of real C. elegans datasets with custom processors
     # Select datasets to process with list indexing
     "EXPERIMENT_DATASETS" : [
-        "Kato2015", # 53s
-        "Nichols2017", # 250s
-        "Skora2018", # 50s
-        "Kaplan2020", # 116s
+        "Kato2015", 
+        "Nichols2017", 
+        "Skora2018",
+        "Kaplan2020",
         "Nejatbakhsh2020",
         "Yemini2021",
         "Uzel2022",
         "Dag2023",
         "Leifer2023",  # Different type of dataset: stimulus-response.
         "Lin2023",
-        "Flavell2023",  # TODO: Something is wrong with worm0 in this dataset. Specifically, "worm0" is always absent. Why?
+        "Flavell2023",
         "Venkatachalam2024",  # This is unpublished data. Downloaded from chemosensory-data.worm.world/.
     ][:],
     
