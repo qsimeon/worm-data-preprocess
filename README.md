@@ -8,7 +8,7 @@ connectome data to be used for downstream analysis and machine learning tasks.
 ## Prerequisites
 
 - Ensure you have **Conda** installed. If not, download and install it from [Anaconda](https://www.anaconda.com/) or [Miniconda](https://docs.conda.io/en/latest/miniconda.html).
-- Install a Python version compatible with the listed libraries (e.g., Python 3.8+).
+- Install a Python version compatible with the listed libraries (recommended: Python 3.12+).
 
 ---
 
@@ -61,7 +61,7 @@ _This clears around 40gb of files._
 
 Optionally, we have included the ability to generate a parquet file for
 clear of viewing the data. This is what is used to create the data file
-available on the associated HuggingFace repo.
+available on the associated [HuggingFace](https://huggingface.co/datasets/qsimeon/celegans_neural_data).
 
 1. Run the script:
 
