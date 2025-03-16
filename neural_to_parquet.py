@@ -14,7 +14,6 @@ from tqdm import tqdm
 
 from _main_utils import (
     init_random_seeds,
-    SYNTHETIC_DATASETS,
     ROOT_DIR
 )
 
@@ -28,7 +27,7 @@ def all_zeros(lst):
 
 def load_dataset(name):
     """Load a specified neural dataset's pickle file by name"""
-    assert (name in EXPERIMENT_DATASETS) or (name in SYNTHETIC_DATASETS), "Unrecognized dataset!"
+    assert (name in EXPERIMENT_DATASETS), "Unrecognized dataset!"
     file = os.path.join(ROOT_DIR, "data", "processed", "neural", f"{name}.pickle")
     assert os.path.exists(file), f"The file {file} does not exist."
     with open(file, "rb") as pickle_in:
