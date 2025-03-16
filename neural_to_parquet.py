@@ -52,7 +52,6 @@ def process_worm_datasets(datasets):
         "neuron",
         "slot",
         "is_labeled_neuron",
-        "is_unlabeled_neuron",
         "smooth_method",
         "interpolate_method",  
         "normalization_method", # Standard or Causal
@@ -159,9 +158,6 @@ def process_worm_datasets(datasets):
                 max_timesteps = np.intc(dataset[worm]["max_timesteps"])
 
                 is_labeled_neuron = neuron in dataset[worm]["labeled_neuron_to_slot"]
-                is_unlabeled_neuron = (
-                    neuron in dataset[worm]["unlabeled_neuron_to_slot"]
-                )
 
                 # all the columns from `preprocess_traces` worm dict in NeuralBaseProcessor
                 all_columns = {
@@ -171,7 +167,6 @@ def process_worm_datasets(datasets):
                     "neuron": neuron,
                     "slot": slot,
                     "is_labeled_neuron": is_labeled_neuron,
-                    "is_unlabeled_neuron": is_unlabeled_neuron,
                     "smooth_method": smooth_method,
                     "interpolate_method": interpolate_method,
                     "normalization_method": normalization_method,
