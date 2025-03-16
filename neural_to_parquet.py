@@ -99,6 +99,7 @@ def process_worm_datasets(datasets):
                         .astype(np.float32)
                     )
 
+                # remove worm if calcium_data is all zero
                 if all_zeros(calcium_data):
                     continue
 
@@ -212,6 +213,11 @@ def process_worm_datasets(datasets):
 #     plt.show()
 
 def main():
+    # for testing:
+    # datasets = load_all_worm_datasets()
+    # df = process_worm_datasets(datasets)
+    # return
+    
     init_random_seeds(42)
     
     # Prompt user for file name
