@@ -19,25 +19,6 @@ The submodule consists of the following files:
 Please refer to the `README.md` in the root directory for information on how to
 process the data.
 
-## Datasets
-
-The following datasets are included:
-
-| Index | Dataset Name         | Num. Worms | Mean Num. Neurons (labeled, recorded)
-|-------|----------------------|------------|--------------------------------------|
-| 1     | `Kato2015  `       | 12         | (42, 127)                            |
-| 2     | `Nichols2017`      | 44         | (34, 108)                            |
-| 3     | `Skora2018`        | 12         | (46, 129)                            |
-| 4     |` Kaplan2020   `    | 19         | (36, 114)                            |
-| 5     | `Yemini2021 `      | 49         | (110, 125)                           |
-| 6     | `Uzel2022    `     | 6          | (50, 138)                            |
-| 7     | `Dag2023`         | 7          | (100, 143)                           |
-| 8     | `Atanas2023`      | 42         | (88, 136)                            |
-| 9     | `Leifer2023`      | 103        | (69, 122)                            |
-| 10    | `Lin2023`         | 577        | (8, 8)                               |
-| 11    | `Flavell2023`         | 40        | (89, TODO:)                               |
-| 12    | `Venkatachalam2024` | 22        | (187, 187)                          | 
-
 ### Dataset Structure
 
 Each dataset is stored in a Python dictionary of the following form:

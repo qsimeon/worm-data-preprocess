@@ -66,6 +66,28 @@ python neural_to_parqet.py
 
 ---
 
+## Datasets
+
+The following datasets are included by default:
+
+| Index | Dataset Name         | Num. Worms | Mean Num. Neurons (labeled, recorded)
+|-------|----------------------|------------|--------------------------------------|
+| 1     | `Kato2015  `       | 12         | (42, 127)                            |
+| 2     | `Nichols2017`      | 44         | (34, 108)                            |
+| 3     | `Skora2018`        | 12         | (46, 129)                            |
+| 4     |` Kaplan2020   `    | 19         | (36, 114)                            |
+| 5     |`Nejatbakhsh2020 `    | 21         | (169, 260) TODO: not correct                           |
+| 6     | `Yemini2021 `      | 49         | (110, 125)                           |
+| 7     | `Uzel2022    `     | 6          | (50, 138)                            |
+| 8     | `Dag2023`         | 7          | (100, 143)                           |
+| 9     | `Atanas2023`      | 42         | (88, 136)                            |
+| 10     | `Leifer2023`      | 103        | (69, 122)                            |
+| 11    | `Lin2023`         | 577        | (8, 8)                               |
+| 12    | `Flavell2023`         | 40        | (88, 136)                               |
+| 13    | `Venkatachalam2024` | 22        | (187, 187)                          | 
+
+---
+
 ## Preliminary Data Analysis
 
 **Data Analysis Notebook**
@@ -84,5 +106,5 @@ python neural_to_parqet.py
 
 ---
 
-This code is part of an ongoing research project with the MIT Department of Brain and
-Cognitive Sciences.
+*This code is part of an ongoing research project with the MIT Department of Brain and
+Cognitive Sciences in the Boyden Lab.*
