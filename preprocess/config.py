@@ -5,10 +5,10 @@ PREPROCESS_CONFIG = {
     # Local filename for downloaded opensource neural data
     "opensource_neural_zipfile": "opensource_neural_data.zip",
     # Set of real C. elegans datasets with custom processors
-    # Select datasets to process with list indexing
-    "EXPERIMENT_DATASETS" : [
-        "Kato2015", 
-        "Nichols2017", 
+    # Select specific ranges of datasets to process with list indexing
+    "EXPERIMENT_DATASETS": [
+        "Kato2015",
+        "Nichols2017",
         "Skora2018",
         "Kaplan2020",
         "Nejatbakhsh2020",
@@ -20,6 +20,8 @@ PREPROCESS_CONFIG = {
         "Flavell2023",
         "Venkatachalam2024",  # This is unpublished data. Downloaded from chemosensory-data.worm.world/.
     ][:],
+    # Dataset selection ('all' or specific dataset names)
+    "source_dataset": "all",
     
     ## PREPROCESSED DATA (for training models)
     # URL to download pre-processed datasets
@@ -31,12 +33,7 @@ PREPROCESS_CONFIG = {
     # Connectome publication to use ('all' or specific publication name)
     "connectome_pub": "all",
     
-    # Whether to delete downloaded data after processing
-    "cleanup": False,
-    # Elect to use multithreading for parallel processing (recommended: True)
-    "use_multithreading": True,
-    # Dataset selection ('all' or specific dataset names)
-    "source_dataset": "all",
+    ## PREPROCESS PARAMETERS
     # Time interval in seconds for resampling neural activity
     "resample_dt": 0.333,
     # Interpolation method for missing data points
@@ -50,8 +47,14 @@ PREPROCESS_CONFIG = {
         # Gaussian kernel width (larger = smoother)
         "sigma": 5,
         # Moving average window size (larger = smoother)
-        "window_size": 15
+        "window_size": 15,
     },
     # Type of normalization transformation used (causal/standard)
-    "norm_transform": "standard", 
+    "norm_transform": "standard",
+    
+    ## PROCESSING SPEEDUPS
+    # Whether to delete downloaded data after processing
+    "cleanup": False,
+    # Elect to use multithreading for parallel processing (recommended: True)
+    "use_multithreading": True,
 }

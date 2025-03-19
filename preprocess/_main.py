@@ -1,6 +1,6 @@
-from preprocess._utils import os, logger, ROOT_DIR, EXPERIMENT_DATASETS, pickle_neural_data
+from preprocess._utils import os, logger, ROOT_DIR, EXPERIMENT_DATASETS, pickle_neural_data, preprocess_connectome
 from preprocess.preprocessors._helpers import CausalNormalizer
-from preprocess._pkg import StandardScaler
+from preprocess._pkg import StandardScaler, RAW_FILES
 
 import time
 
@@ -55,6 +55,25 @@ def process_data(config: dict) -> None:
         logger.info(f"Finished preprocessing neural data in {end_time - start_time:.2f} seconds.")
     else:
         logger.info("Neural data already preprocessed.")
+        logger.info("Run `python cleanup.py` to delete previous preprocessed files.")
+        
+    
+    # Preprocess the connectome data if not already done
+    if not os.path.exists(
+        os.path.join(ROOT_DIR, "data/processed/connectome/.processed")
+    ):
+        start_time = time.time()
+        logger.info("Preprocessing C. elegans connectome data...")
+        preprocess_connectome(
+            raw_files=RAW_FILES, source_connectome=config["connectome_pub"]
+        )
+        end_time = time.time()
+        logger.info(
+            f"Finished preprocessing connectome in {end_time - start_time:.2f} seconds."
+        )
+    else:
+        logger.info("Connectome already preprocessed.")
+        # TODO: ensure cleanup.py clears connectome files
         logger.info("Run `python cleanup.py` to delete previous preprocessed files.")
 
     return None
