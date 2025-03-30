@@ -79,17 +79,17 @@ The following 12 datasets are included by default:
 
 | Index | Dataset Name        | Num. Worms | Mean Num. Neurons (labeled, recorded) |
 | ----- | ------------------- | ---------- | ------------------------------------- |
-| 1     | `Kato2015  `        | 12         | (42, 128)                             |
-| 2     | `Nichols2017`       | 44         | (35, 108)                             |
-| 3     | `Skora2018`         | 12         | (47, 129)                             |
-| 4     | `Kaplan2020  `      | 19         | (37, 115)                             |
-| 5     | `Nejatbakhsh2020 `  | 21         | (174, 175)                            |
-| 6     | `Yemini2021 `       | 49         | (111, 111)                            |
-| 7     | `Uzel2022    `      | 6          | (50, 139)                             |
-| 8     | `Dag2023`           | 7          | (101, 143)                            |
-| 9     | `Leifer2023`        | 103        | (64, 68)                              |
+| 1     | `Kato2015  `        | 12         | (42, 127)                             |
+| 2     | `Nichols2017`       | 44         | (34, 108)                             |
+| 3     | `Skora2018`         | 12         | (46, 129)                             |
+| 4     | `Kaplan2020  `      | 19         | (36, 114)                             |
+| 5     | `Nejatbakhsh2020 `  | 21         | (173, 175)                            |
+| 6     | `Yemini2021 `       | 49         | (110, 110)                            |
+| 7     | `Uzel2022    `      | 6          | (50, 138)                             |
+| 8     | `Dag2023`           | 7          | (100, 143)                            |
+| 9     | `Leifer2023`        | 103        | (63, 67)                              |
 | 10    | `Lin2023`           | 577        | (8, 8)                                |
-| 11    | `Flavell2023`       | 40         | (89, 136)                             |
+| 11    | `Flavell2023`       | 40         | (88, 136)                             |
 | 12    | `Venkatachalam2024` | 22         | (187, 187)                            |
 
 See how this table was generated from the final parquet
