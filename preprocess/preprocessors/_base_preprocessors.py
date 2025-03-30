@@ -277,7 +277,7 @@ class NeuralBasePreprocessor:
     def __init__(
         self,
         source_dataset,
-        transform=CausalNormalizer(),  # StandardScaler() #PowerTransformer() #CausalNormalizer() #None
+        transform=StandardScaler(),  # StandardScaler() #PowerTransformer() #CausalNormalizer() #None
         smooth_method="none",
         interpolate_method="linear",
         resample_dt=0.1,
@@ -288,7 +288,7 @@ class NeuralBasePreprocessor:
 
         Parameters:
             source_dataset (str): The name of the source dataset to be preprocessed.
-            transform (object, optional): The sklearn transformation to be applied to the data. Default is CausalNormalizer().
+            transform (object, optional): The sklearn transformation to be applied to the data. Default is StandardScaler().
             smooth_method (str, optional): The smoothing method to apply to the data. Default is "moving".
             interpolate_method (str, optional): The interpolation method to use when resampling the data. Default is "linear".
             resample_dt (float, optional): The resampling time interval in seconds. Default is 0.1.
