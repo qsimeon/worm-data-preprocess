@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from multiprocessing import Pool
+from collections import defaultdict
 
 # NOTE: IterativeImputer is experimental and the API might change without any deprecation cycle.
 # To use it, you need to explicitly import enable_iterative_imputer.
@@ -26,7 +27,7 @@ from scipy.interpolate import interp1d
 
 from pynwb import NWBHDF5IO
 from scipy.io import loadmat
-from typing import Dict, List
+from typing import Dict, List, Tuple, Set
 from sklearn import preprocessing
 from scipy.ndimage import gaussian_filter1d
 from torch_geometric.data import Data, download_url as tg_download_url

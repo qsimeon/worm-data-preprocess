@@ -9,9 +9,14 @@ from preprocess._pkg import (
     os,
     torch,
     to_dense_adj,
+    coalesce,
     Data,
     StandardScaler,
     List,
+    Dict,
+    Tuple,
+    Set,
+    defaultdict
 )
 from preprocess.preprocessors._helpers import (
     smooth_data_preprocess,
@@ -79,7 +84,206 @@ class ConnectomeBasePreprocessor:
         """
         return pd.read_csv(os.path.join(RAW_DATA_DIR, "neuron_master_sheet.csv"))
 
-    def preprocess_common_tasks(self, edge_index_in, edge_attr_in):
+    def _symmetrize_gap_junctions(
+        self,
+        gap_data: List[Tuple[int, int, float]],
+        aggregation_method: str = "mean",
+    ) -> Tuple[List[List[int]], List[List[float]]]:
+        """
+        Helper function 1 for dataset-specific preprocessors:
+        
+        Processes raw gap junction data to enforce symmetry.
+
+        Aggregates weights for each undirected pair (or self-loop), calculates
+        a representative symmetric weight, and creates explicit directed edges
+        (i->j and j->i) with this weight. Warns if asymmetry is detected
+        during aggregation based on the raw input weights for a pair.
+
+        Args:
+            gap_data: A list of tuples, where each tuple represents a raw gap
+                      junction reading: (pre_neuron_idx, post_neuron_idx, weight).
+            aggregation_method: How to combine multiple weights found for the
+                                same undirected pair ('mean', 'sum', 'max'). Defaults to 'mean'.
+
+        Returns:
+            A tuple containing:
+            - edges_gap_sym_list (List[List[int]]): List of symmetric edge pairs [[idx1, idx2], [idx2, idx1], ...].
+            - edge_attr_gap_sym_list (List[List[float]]): Corresponding attributes [[weight, 0.0], [weight, 0.0], ...].
+        """
+        processed_gap_pairs: Dict[frozenset, List[float]] = defaultdict(list)
+        edges_gap_sym_list = []
+        edge_attr_gap_sym_list = []
+
+        # 1. Aggregate weights per undirected pair/self-loop
+        for idx1, idx2, weight in gap_data:
+            # Basic validation: Ensure indices are within bounds
+            # Note: neuron_to_idx mapping should happen before calling this helper
+            if not (
+                0 <= idx1 < len(self.neuron_labels)
+                and 0 <= idx2 < len(self.neuron_labels)
+            ):
+                print(
+                    f"Warning ({self.__class__.__name__}): Skipping gap edge with invalid indices ({idx1}, {idx2}). Max index is {len(self.neuron_labels) - 1}."
+                )
+                continue
+            if weight == 0:
+                continue  # Skip zero-weight entries -- added in common_tasks
+
+            pair_key = frozenset({idx1, idx2})
+            processed_gap_pairs[pair_key].append(float(weight))
+
+        # 2. Create symmetric edges using aggregated weights
+        for pair_key, weights_list in processed_gap_pairs.items():
+            if not weights_list:
+                continue  # Should not happen with defaultdict(list)
+
+            # Calculate representative weight
+            if aggregation_method == "sum":
+                rep_weight = np.sum(weights_list)
+            elif aggregation_method == "max":
+                rep_weight = np.max(weights_list)
+            else:  # Defaults to mean -- RECOMMENDED
+                rep_weight = np.mean(weights_list)
+
+            # Check for asymmetry in original data points for this pair/loop
+            # (Compares weights before aggregation method was applied)
+            if len(weights_list) > 1 and not np.allclose(
+                weights_list[0], weights_list, atol=1e-6
+            ):
+                indices = list(pair_key)
+                node_names = [
+                    self.idx_to_label.get(idx, f"Idx {idx}") for idx in indices
+                ]
+                print(
+                    f"  WARNING ({self.__class__.__name__}): Potential asymmetry detected in raw gap weights for pair/loop involving {node_names} (Indices: {indices}). "
+                    f"Raw weights found: {weights_list}. Using {aggregation_method}: {rep_weight:.4f}"
+                )
+
+            # Create edges
+            if len(pair_key) == 1:  # Self-loop
+                idx = list(pair_key)[0]
+                edges_gap_sym_list.append([idx, idx])
+                edge_attr_gap_sym_list.append([rep_weight, 0.0])  # [gap, chem]
+            elif len(pair_key) == 2:  # Regular pair
+                idx1, idx2 = list(pair_key)
+                edges_gap_sym_list.append([idx1, idx2])
+                edge_attr_gap_sym_list.append([rep_weight, 0.0])
+                edges_gap_sym_list.append([idx2, idx1])
+                edge_attr_gap_sym_list.append([rep_weight, 0.0])
+
+        return edges_gap_sym_list, edge_attr_gap_sym_list
+
+    def _process_and_coalesce_edges(
+        self,
+        chem_data: List[Tuple[int, int, float]],
+        gap_data: List[Tuple[int, int, float]],
+        gap_aggregation_method: str = "mean",
+        device: torch.device = torch.device("cpu"), 
+        dtype: torch.dtype = torch.float,  
+    ) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Processes raw chemical and gap junction data, enforces gap symmetry,
+        combines them, and returns coalesced edge index and attributes.
+
+        Args:
+            chem_data: List of chemical synapse tuples: (pre_idx, post_idx, weight).
+            gap_data: List of raw gap junction tuples: (pre_idx, post_idx, weight).
+            gap_aggregation_method: Method for gap weight aggregation ('mean', 'sum', 'max').
+            device: The torch device for the output tensors.
+            dtype: The torch dtype for the edge attributes.
+
+        Returns:
+            A tuple containing:
+            - edge_index (torch.Tensor): Coalesced edge indices.
+            - edge_attr (torch.Tensor): Coalesced edge attributes ([gap, chem]).
+        """
+        num_nodes = len(self.neuron_labels)
+        if num_nodes == 0:
+            # Return empty tensors if no nodes defined (should be caught earlier ideally)
+            return torch.empty((2, 0), dtype=torch.long, device=device), torch.empty(
+                (0, 2), dtype=dtype, device=device
+            )
+
+        # 1. Process Gap Junctions (Symmetrize)
+        edges_gap_sym_list, edge_attr_gap_sym_list = self._symmetrize_gap_junctions(
+            gap_data, aggregation_method=gap_aggregation_method
+        )
+
+        # 2. Process Chemical Synapses
+        edges_chem_list = []
+        edge_attr_chem_list = []
+        processed_chem_pairs: Set[Tuple[int, int]] = set()
+        for idx1, idx2, weight in chem_data:
+            # Basic validation
+            if not (0 <= idx1 < num_nodes and 0 <= idx2 < num_nodes):
+                print(
+                    f"Warning ({self.__class__.__name__}): Skipping chemical edge with invalid indices ({idx1}, {idx2})."
+                )
+                continue
+            if weight == 0:
+                continue  # Skip zero weights
+
+            # Check for simple duplicates in input chemical list (good practice)
+            current_pair = (idx1, idx2)
+            if current_pair in processed_chem_pairs:
+                # This indicates the child could have coalesced chemicals beforehand too
+                # For now, we just take the first one encountered, but could aggregate here if needed
+                print(f"  Note ({self.__class__.__name__}): Duplicate chemical edge {current_pair} found in input list. Using first occurrence.")
+                continue
+            processed_chem_pairs.add(current_pair)
+
+            edges_chem_list.append([idx1, idx2])
+            edge_attr_chem_list.append([0.0, float(weight)])  # [gap, chem]
+
+        # 3. Convert to Tensors (Handle empty lists)
+        if edges_gap_sym_list:
+            ggap_edge_index_sym = (
+                torch.tensor(edges_gap_sym_list, dtype=torch.long, device=device)
+                .t()
+                .contiguous()
+            )
+            ggap_edge_attr_sym = torch.tensor(
+                edge_attr_gap_sym_list, dtype=dtype, device=device
+            )
+        else:
+            ggap_edge_index_sym = torch.empty((2, 0), dtype=torch.long, device=device)
+            ggap_edge_attr_sym = torch.empty((0, 2), dtype=dtype, device=device)
+
+        if edges_chem_list:
+            gsyn_edge_index = (
+                torch.tensor(edges_chem_list, dtype=torch.long, device=device)
+                .t()
+                .contiguous()
+            )
+            gsyn_edge_attr = torch.tensor(
+                edge_attr_chem_list, dtype=dtype, device=device
+            )
+        else:
+            gsyn_edge_index = torch.empty((2, 0), dtype=torch.long, device=device)
+            gsyn_edge_attr = torch.empty((0, 2), dtype=dtype, device=device)
+
+        # 4. Combine and Coalesce
+        combined_edge_index = torch.hstack((ggap_edge_index_sym, gsyn_edge_index))
+        combined_edge_attr = torch.vstack((ggap_edge_attr_sym, gsyn_edge_attr))
+
+        if combined_edge_index.shape[1] > 0:
+            # coalesce sums attributes for edges defined in both gap and chemical lists
+            edge_index, edge_attr = coalesce(
+                combined_edge_index,
+                combined_edge_attr,
+                num_nodes=num_nodes,
+                reduce="add",  # Sums [gap, 0] + [0, chem] -> [gap, chem]
+            )
+        else:
+            # Handle case where no edges exist at all
+            edge_index = torch.empty((2, 0), dtype=torch.long, device=device)
+            edge_attr = torch.empty(
+                (0, 2), dtype=dtype, device=device
+            )  # Ensure 2 features
+
+        return edge_index, edge_attr
+
+    def _preprocess_common_tasks(self, edge_index_in, edge_attr_in):
         """Performs common preprocessing tasks including input validation and graph completion.
 
         This function first validates the input tensors from the child preprocessor,
@@ -93,9 +297,9 @@ class ConnectomeBasePreprocessor:
 
         Args:
             edge_index_in (torch.Tensor) - (2 x # edges): Tensor containing edge
-            indices from the specific preprocessor ([fromNeuron_idx, toNeuron_idx]). 
+            indices from the specific preprocessor ([pre_neuron_idx, post_neuron_idx]).
             Expected to be coalesced (no duplicate pairs).
-            edge_attr_in (torch.Tensor) - (2 x # edges): Tensor containing edge 
+            edge_attr_in (torch.Tensor) - (2 x # edges): Tensor containing edge
             attributes ([gap, chem]) from the specific preprocessor.
 
         Returns:
@@ -186,6 +390,7 @@ class ConnectomeBasePreprocessor:
             if edge_attr_in.shape[0] == 0 or edge_attr_in.shape[1] == 2
             else edge_attr_in.shape[1]
         )
+        # zero_attr creates the default [0,0] value for unspecified edges
         zero_attr = torch.zeros(
             zero_attr_features, dtype=attr_dtype, device=attr_device
         )
@@ -195,7 +400,7 @@ class ConnectomeBasePreprocessor:
                 current_pair = (i, j)
                 final_edge_list.append([i, j])
                 # Use the validated 'processed_edges' dictionary
-                attr = processed_edges.get(current_pair, zero_attr)
+                attr = processed_edges.get(current_pair, zero_attr) # default to [0,0]
                 final_attr_list.append(attr)
 
         # Convert final lists to tensors
@@ -323,7 +528,7 @@ class ConnectomeBasePreprocessor:
 
         return graph, node_type, node_label, node_index, node_class, num_classes
 
-    def save_graph_tensors(
+    def _save_graph_tensors(
         self,
         save_as: str,
         graph: Data,
