@@ -21,7 +21,7 @@ PREPROCESS_CONFIG = {
         "Venkatachalam2024",  # This is unpublished data. Downloaded from chemosensory-data.worm.world/.
     ][:],
     # Dataset selection ('all' or specific dataset names)
-    "source_dataset": "all",
+    "source_dataset": "Kato2015",
     ## PREPROCESSED DATA (for training models)
     # URL to download pre-processed datasets
     "presaved_url": "https://www.dropbox.com/scl/fi/baikxamldjyrf5maephk3/presaved_datasets.zip?rlkey=4qrso6forjpvfdbm9mll3ndxf&dl=1",
@@ -43,7 +43,7 @@ PREPROCESS_CONFIG = {
     #     "white_1986_jse",
     #     "cook_2019"
     # ]
-    "connectome_pub": "openworm",
+    "connectome_pub": "default",
     
     ## PREPROCESS PARAMETERS
     # Time interval in seconds for resampling neural activity

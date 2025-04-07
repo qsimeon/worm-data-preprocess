@@ -5,7 +5,7 @@ from preprocess._pkg import StandardScaler, RAW_FILES
 import time
 
 
-def process_data(config: dict) -> None:
+def process_data(config: dict, data_type: str = "all") -> None:
     """Preprocesses the raw neural and connectome data.
 
     This function preprocesses raw neural and connectome data to be used
@@ -17,6 +17,8 @@ def process_data(config: dict) -> None:
     ------
     config: dict
         Configuration dictionary. See config.py for details.
+    data_type: str
+        Specifies which data to process: "neural", "connectome", or "all" (default).
 
     Calls
     -----
@@ -24,55 +26,56 @@ def process_data(config: dict) -> None:
     preprocess_connectome : function in preprocess/_utils.py
     """
 
-    # Download and pickle the neural data if not already done
-    if not os.path.exists(os.path.join(ROOT_DIR, "data/processed/neural/.processed")):
-        multithread_flag = "with multithreading" if config['use_multithreading'] else "sequentially"
-        logger.info(f"Preprocessing C. elegans neural data {multithread_flag} ({len(EXPERIMENT_DATASETS)} datasets)...")
-        kwargs = dict(
-            alpha=config["smooth"]["alpha"],
-            window_size=config["smooth"]["window_size"],
-            sigma=config["smooth"]["sigma"],
-        )
-        # allow user to select transform and normalization order
-        transform = CausalNormalizer() if config["norm_transform"] == "causal" else StandardScaler()
-        
-        start_time = time.time()
-        pickle_neural_data(
-            url=config["opensource_neural_url"],
-            zipfile=config["opensource_neural_zipfile"],
-            source_dataset=config["source_dataset"],
-            transform=transform, # New in preprint
-            smooth_method=config["smooth"]["method"],
-            resample_dt=config["resample_dt"],
-            interpolate_method=config["interpolate"],
-            cleanup=config["cleanup"],
-            use_multithreading=config['use_multithreading'],
-            **kwargs,
-        )
-        end_time = time.time()
+    # Process neural data if requested
+    if data_type in ["neural", "all"]:
+        if not os.path.exists(os.path.join(ROOT_DIR, "data/processed/neural/.processed")):
+            multithread_flag = "with multithreading" if config['use_multithreading'] else "sequentially"
+            logger.info(f"Preprocessing C. elegans neural data {multithread_flag} ({len(EXPERIMENT_DATASETS)} datasets)...")
+            kwargs = dict(
+                alpha=config["smooth"]["alpha"],
+                window_size=config["smooth"]["window_size"],
+                sigma=config["smooth"]["sigma"],
+            )
+            # allow user to select transform and normalization order
+            transform = CausalNormalizer() if config["norm_transform"] == "causal" else StandardScaler()
+            
+            start_time = time.time()
+            pickle_neural_data(
+                url=config["opensource_neural_url"],
+                zipfile=config["opensource_neural_zipfile"],
+                source_dataset=config["source_dataset"],
+                transform=transform, # New in preprint
+                smooth_method=config["smooth"]["method"],
+                resample_dt=config["resample_dt"],
+                interpolate_method=config["interpolate"],
+                cleanup=config["cleanup"],
+                use_multithreading=config['use_multithreading'],
+                **kwargs,
+            )
+            end_time = time.time()
 
-        print("") # new line
-        logger.info(f"Finished preprocessing neural data in {end_time - start_time:.2f} seconds.")
-    else:
-        logger.info("Neural data already preprocessed.")
-        logger.info("Run `python cleanup.py -n` to delete preprocessed neural files.")
-        
+            print("") # new line
+            logger.info(f"Finished preprocessing neural data in {end_time - start_time:.2f} seconds.")
+        else:
+            logger.info("Neural data already preprocessed.")
+            logger.info("Run `python cleanup.py -n` to delete preprocessed neural files.")
     
-    # Preprocess the connectome data if not already done
-    if not os.path.exists(
-        os.path.join(ROOT_DIR, "data/processed/connectome/.processed")
-    ):
-        start_time = time.time()
-        logger.info(f"Preprocessing C. elegans connectome data datasets={config['connectome_pub']}...")
-        preprocess_connectome(
-            raw_files=RAW_FILES, source_connectome=config["connectome_pub"]
-        )
-        end_time = time.time()
-        logger.info(
-            f"Finished preprocessing connectome in {end_time - start_time:.2f} seconds."
-        )
-    else:
-        logger.info("Connectome already preprocessed.")
-        logger.info("Run `python cleanup.py -c` to delete preprocessed connectome files.")
+    # Process connectome data if requested
+    if data_type in ["connectome", "all"]:
+        if not os.path.exists(
+            os.path.join(ROOT_DIR, "data/processed/connectome/.processed")
+        ):
+            start_time = time.time()
+            logger.info(f"Preprocessing C. elegans connectome data datasets={config['connectome_pub']}...")
+            preprocess_connectome(
+                raw_files=RAW_FILES, source_connectome=config["connectome_pub"]
+            )
+            end_time = time.time()
+            logger.info(
+                f"Finished preprocessing connectome in {end_time - start_time:.2f} seconds."
+            )
+        else:
+            logger.info("Connectome already preprocessed.")
+            logger.info("Run `python cleanup.py -c` to delete preprocessed connectome files.")
 
     return None
