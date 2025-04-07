@@ -22,16 +22,28 @@ PREPROCESS_CONFIG = {
     ][:],
     # Dataset selection ('all' or specific dataset names)
     "source_dataset": "all",
-    
     ## PREPROCESSED DATA (for training models)
     # URL to download pre-processed datasets
     "presaved_url": "https://www.dropbox.com/scl/fi/baikxamldjyrf5maephk3/presaved_datasets.zip?rlkey=4qrso6forjpvfdbm9mll3ndxf&dl=1",
     # Local filename for pre-processed data
     "presaved_file": "presaved_datasets.zip",
-    
     ## CONNECTOME DATA
     # Connectome publication to use ('all' or specific publication name)
-    "connectome_pub": "all",
+    #     [
+    #     "all",
+    #     "openworm",
+    #     "chklovskii",
+    #     "funconn",
+    #     "randi_2023",
+    #     "witvliet_7",
+    #     "witvliet_8",
+    #     "white_1986_whole",
+    #     "white_1986_n2u",
+    #     "white_1986_jsh",
+    #     "white_1986_jse",
+    #     "cook_2019"
+    # ]
+    "connectome_pub": "openworm",
     
     ## PREPROCESS PARAMETERS
     # Time interval in seconds for resampling neural activity
@@ -51,7 +63,6 @@ PREPROCESS_CONFIG = {
     },
     # Type of normalization transformation used (causal/standard)
     "norm_transform": "standard",
-    
     ## PROCESSING SPEEDUPS
     # Whether to delete downloaded data after processing
     "cleanup": False,

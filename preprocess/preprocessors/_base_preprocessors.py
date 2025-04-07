@@ -8,7 +8,6 @@ from preprocess._pkg import (
     pickle,
     os,
     torch,
-    coalesce,
     to_dense_adj,
     Data,
     StandardScaler,
@@ -80,109 +79,247 @@ class ConnectomeBasePreprocessor:
         """
         return pd.read_csv(os.path.join(RAW_DATA_DIR, "neuron_master_sheet.csv"))
 
-    def preprocess_common_tasks(self, edge_index, edge_attr):
-        """Performs common preprocessing tasks such as creating graph tensors.
+    def preprocess_common_tasks(self, edge_index_in, edge_attr_in):
+        """Performs common preprocessing tasks including input validation and graph completion.
 
-        This function processes the edge indices and attributes to create graph tensors
-        that represent the connectome. It ensures the correct mapping of neurons to their classes
-        and types, checks for the symmetry of the gap junction adjacency matrix, and adds
-        missing nodes with zero-weight edges to maintain graph completeness.
+        This function first validates the input tensors from the child preprocessor,
+        specifically checking for duplicate edges with conflicting attributes. It enforces
+        the contract that child preprocessors should provide coalesced edge data
+        (i.e. not [gap weight, 0] and [0, chemical weight] as separate edges).
+        It then processes the edge indices and attributes to create graph tensors
+        that represent the connectome, ensuring graph completeness by adding missing
+        edges with zero-weight attributes, mapping neurons to classes/types,
+        and checking gap junction symmetry on the final completed graph.
 
         Args:
-            edge_index (torch.Tensor): Tensor containing the edge indices.
-            edge_attr (torch.Tensor): Tensor containing the edge attributes.
+            edge_index_in (torch.Tensor) - (2 x # edges): Tensor containing edge
+            indices from the specific preprocessor ([fromNeuron_idx, toNeuron_idx]). 
+            Expected to be coalesced (no duplicate pairs).
+            edge_attr_in (torch.Tensor) - (2 x # edges): Tensor containing edge 
+            attributes ([gap, chem]) from the specific preprocessor.
 
         Returns:
             graph (torch_geometric.data.Data): The processed graph data object.
-            node_type (torch.Tensor): Tensor of integers representing neuron types.
+            node_type (dict): Dictionary mapping node indices to neuron type integers.
             node_label (dict): Dictionary mapping node indices to neuron labels.
             node_index (torch.Tensor): Tensor containing the node indices.
             node_class (dict): Dictionary mapping node indices to neuron classes.
             num_classes (int): The number of unique neuron classes.
+
+        Raises:
+            ValueError: If input tensors have mismatched shapes.
+            ValueError: If `edge_index_in` contains duplicate edge pairs with
+                        different attributes, violating the expectation of
+                        coalesced input.
+            AssertionError: If the gap junction adjacency matrix of the completed graph
+                            is not symmetric.
         """
+        num_nodes = len(self.neuron_labels)
+        if num_nodes == 0:
+            raise ValueError(
+                f"Cannot process with zero neurons defined in self.neuron_labels in {self.__class__.__name__}."
+            )
+        if edge_attr_in.shape[0] != edge_index_in.shape[1]:
+            raise ValueError(
+                f"Input edge_index and edge_attr dimensions do not match in {self.__class__.__name__}."
+            )
+        if edge_attr_in.shape[0] > 0 and edge_attr_in.shape[1] != 2:
+            print(
+                f"Warning: Input edge_attr shape is {edge_attr_in.shape}, expected [num_edges, 2]. Assuming order is [gap, chem]."
+            )
+            
+        # --- Validate Input: Check for duplicate edges with conflicting attributes ---
+        processed_edges = {}  # Store the first attribute encountered for each edge
+        # reverse map for clearer error messages
+        idx_to_label = {idx: label for label, idx in self.neuron_to_idx.items()}
+
+        # move to cpu to speed up
+        edge_index_in_cpu = edge_index_in.cpu()
+        edge_attr_in_cpu = edge_attr_in.cpu()
+
+        for i in range(edge_index_in_cpu.shape[1]):
+            u, v = edge_index_in_cpu[0, i].item(), edge_index_in_cpu[1, i].item()
+            current_pair = (u, v)
+            current_attr = edge_attr_in_cpu[i]
+
+            if current_pair in processed_edges:
+                previous_attr = processed_edges[current_pair]
+                # Check if the attributes are actually different
+                if not torch.equal(current_attr, previous_attr):
+                    u_label = idx_to_label.get(u, f"Idx {u}")
+                    v_label = idx_to_label.get(v, f"Idx {v}")
+                    error_msg = (
+                        f"Input Error in {self.__class__.__name__}: Duplicate edge "
+                        f"({u_label} -> {v_label}) found with conflicting attributes. "
+                        f"This indicates the input was not properly coalesced.\n"
+                        f"  First occurrence attribute: {previous_attr.tolist()}\n"
+                        f"  Conflicting attribute found: {current_attr.tolist()}\n"
+                        f"Please ensure the child preprocessor '{self.__class__.__name__}' calls "
+                        f"'coalesce(..., reduce=\"add\")' before passing edges to "
+                        f"'preprocess_common_tasks'."
+                    )
+                    raise ValueError(error_msg)
+                else: # Optional: Warn about redundant identical edges
+                    print(f"Warning ({self.__class__.__name__}): Redundant identical edge "
+                          f"({u_label} -> {v_label}) with attribute {current_attr.tolist()} found in input.")
+                    pass
+            else:
+                processed_edges[current_pair] = current_attr
+
+        # --- Ensure graph completeness and check symmetry ---
+        # Now 'processed_edges' contains unique edges from the input and their first seen attribute.
+        # We use this dictionary for the completion step.
+
+        final_edge_list = []
+        final_attr_list = []
+        # Determine default dtype and device from input or default to float/cpu
+        attr_dtype = edge_attr_in.dtype if edge_attr_in.shape[0] > 0 else torch.float
+        attr_device = (
+            edge_attr_in.device if edge_attr_in.shape[0] > 0 else torch.device("cpu")
+        )
+        index_device = (
+            edge_index_in.device if edge_index_in.shape[0] > 0 else torch.device("cpu")
+        )
+        # Ensure zero_attr has 2 features if possible, matching expected edge_attr format
+        zero_attr_features = (
+            2
+            if edge_attr_in.shape[0] == 0 or edge_attr_in.shape[1] == 2
+            else edge_attr_in.shape[1]
+        )
+        zero_attr = torch.zeros(
+            zero_attr_features, dtype=attr_dtype, device=attr_device
+        )
+
+        for i in range(num_nodes):
+            for j in range(num_nodes):
+                current_pair = (i, j)
+                final_edge_list.append([i, j])
+                # Use the validated 'processed_edges' dictionary
+                attr = processed_edges.get(current_pair, zero_attr)
+                final_attr_list.append(attr)
+
+        # Convert final lists to tensors
+        if final_edge_list:
+            edge_index = (
+                torch.tensor(final_edge_list, dtype=torch.long, device=index_device)
+                .t()
+                .contiguous()
+            )
+            # Ensure stacking happens correctly even if lists contain tensors already
+            if isinstance(final_attr_list[0], torch.Tensor):
+                edge_attr = torch.stack(final_attr_list, dim=0)
+            else:  # Should not happen if zero_attr is tensor and processed_edges stores tensors
+                edge_attr = torch.tensor(
+                    final_attr_list, dtype=attr_dtype, device=attr_device
+                )
+
+        else:  # Should not happen if num_nodes > 0
+            edge_index = torch.empty((2, 0), dtype=torch.long, device=index_device)
+            attr_features = 2  # Default to 2 features for empty case consistency
+            edge_attr = torch.empty(
+                (0, attr_features), dtype=attr_dtype, device=attr_device
+            )
+
+        # Check for symmetry in the gap junction adjacency matrix (electrical synapses should be symmetric)
+        # This check is performed on the completed graph representation
+        if (
+            edge_attr.shape[0] > 0 and edge_attr.shape[1] > 0
+        ):  # Check if attributes exist and have features
+            try:
+                gap_junctions = to_dense_adj(
+                    edge_index=edge_index,
+                    edge_attr=edge_attr[:, 0],  # Use gap weights (index 0)
+                    max_num_nodes=num_nodes,
+                ).squeeze(0)
+
+                if not torch.allclose(gap_junctions, gap_junctions.T, atol=1e-6):
+                    # Add specific warning about asymmetry location if needed
+                    diff = torch.abs(gap_junctions - gap_junctions.T)
+                    asym_indices = torch.nonzero(diff > 1e-6)
+                    if asym_indices.shape[0] > 0:
+                        r, c = asym_indices[0].tolist()
+                        val1 = gap_junctions[r, c].item()
+                        val2 = gap_junctions[c, r].item()
+                        node_label_map = {
+                            idx: label for label, idx in self.neuron_to_idx.items()
+                        }  # Temp map needed here
+                        node1 = node_label_map.get(r, f"Idx {r}")
+                        node2 = node_label_map.get(c, f"Idx {c}")
+                        print(
+                            f"Symmetry Check WARNING: Asymmetry found between {node1} and {node2}. Gap({node1}->{node2})={val1:.4f}, Gap({node2}->{node1})={val2:.4f}"
+                        )
+                    raise AssertionError(f"The gap junction adjacency matrix (after completion) is not symmetric in {self.__class__.__name__}")
+            except IndexError:
+                print(
+                    "Warning: Could not perform symmetry check - edge_attr might not have expected shape."
+                )
+        elif edge_attr.shape[0] > 0 and edge_attr.shape[1] == 0:
+            print("Warning: Skipping symmetry check - edge_attr has 0 features.")
+
+
+        # --- Process metadata using the completed graph ---
         # Filter the neuron master sheet to include only neurons present in the labels
         df_master = self.neuron_master_sheet[
             self.neuron_master_sheet["label"].isin(self.neuron_labels)
-        ]
+        ].copy()  # Use .copy() to avoid SettingWithCopyWarning if modifying df_master
 
         # Create a position dictionary (pos) for neurons using their x, y, z coordinates
+        # Use self.neuron_to_idx for mapping labels to the graph indices
         pos_dict = df_master.set_index("label")[["x", "y", "z"]].to_dict("index")
-        pos = {
-            self.neuron_to_idx[label]: [
-                pos_dict[label]["x"],
-                pos_dict[label]["y"],
-                pos_dict[label]["z"],
-            ]
-            for label in pos_dict
-        }
+        # Create pos tensor matching graph node order and device
+        pos_tensor_data = torch.zeros(
+            (num_nodes, 3), dtype=torch.float, device=edge_index.device
+        )
+        for label, idx in self.neuron_to_idx.items():
+            if label in pos_dict:
+                pos_tensor_data[idx] = torch.tensor(
+                    [pos_dict[label]["x"], pos_dict[label]["y"], pos_dict[label]["z"]],
+                    dtype=torch.float,
+                )
+            # else: keep as zeros or handle missing position data
 
         # Encode the neuron class (e.g., ADA, ADF) and create a mapping from node index to neuron class
         df_master["class"] = df_master["class"].fillna("Unknown")
+        # Check for label existence
         node_class = {
             self.neuron_to_idx[label]: neuron_class
             for label, neuron_class in zip(df_master["label"], df_master["class"])
+            if label in self.neuron_to_idx
         }
         num_classes = len(df_master["class"].unique())
 
         # Alphabetically sort neuron types and encode them as integers
         df_master["type"] = df_master["type"].fillna("Unknown")
-        unique_types = sorted(
-            df_master["type"].unique()
-        )  # inter, motor, pharynx, sensory
+        unique_types = sorted(df_master["type"].unique())
         type_to_int = {neuron_type: i for i, neuron_type in enumerate(unique_types)}
 
-        # Create tensor of neuron types (y) using the encoded integers
-        y = torch.tensor(
-            [type_to_int[neuron_type] for neuron_type in df_master["type"]],
-            dtype=torch.long,
-        )
+        # Create tensor of neuron types (y) using the encoded integers, matching graph node order
+        y_list = [
+            type_to_int.get("Unknown", 0)
+        ] * num_nodes  # Default to 'Unknown' or 0
+        type_map = dict(zip(df_master["label"], df_master["type"]))
+        for label, idx in self.neuron_to_idx.items():
+            neuron_type = type_map.get(label, "Unknown")
+            y_list[idx] = type_to_int.get(neuron_type, type_to_int.get("Unknown", 0))
+        y = torch.tensor(y_list, dtype=torch.long, device=edge_index.device)
 
-        # Map node indices to neuron types using integers
-        node_type = {
-            self.neuron_to_idx[label]: type_to_int[neuron_type]
-            for label, neuron_type in zip(df_master["label"], df_master["type"])
-        }
+        # Map node indices to neuron types using integers (for the returned dict)
+        node_type = {idx: y_list[idx] for idx in range(num_nodes)}
 
-        # Initialize the node features (x) as a tensor, here set as empty with 1024 features per node (customize as needed)
-        x = torch.empty(len(self.neuron_labels), 1024, dtype=torch.float)
+        # Initialize the node features (x) as a tensor, matching device
+        x = torch.empty(
+            num_nodes, 1024, dtype=torch.float, device=edge_index.device
+        ) 
 
         # Create the mapping from node indices to neuron labels (e.g., 'ADAL', 'ADAR', etc.)
         node_label = {idx: label for label, idx in self.neuron_to_idx.items()}
 
         # Create the node index tensor for the graph
-        node_index = torch.arange(len(self.neuron_labels))
-
-        # Add missing nodes with zero-weight edges to ensure the adjacency matrix is 300x300
-        all_indices = torch.arange(len(self.neuron_labels))
-        full_edge_index = torch.combinations(all_indices, r=2).T
-        existing_edges_set = set(map(tuple, edge_index.T.tolist()))
-
-        additional_edges = []
-        additional_edge_attr = []
-        for edge in full_edge_index.T.tolist():
-            if tuple(edge) not in existing_edges_set:
-                additional_edges.append(edge)
-                additional_edge_attr.append(
-                    [0, 0]
-                )  # Add a zero-weight edge for missing connections
-
-        # If there are additional edges, add them to the edge_index and edge_attr tensors
-        if additional_edges:
-            additional_edges = torch.tensor(additional_edges).T
-            additional_edge_attr = torch.tensor(additional_edge_attr, dtype=torch.float)
-            edge_index = torch.cat([edge_index, additional_edges], dim=1)
-            edge_attr = torch.cat([edge_attr, additional_edge_attr], dim=0)
-
-        # Check for symmetry in the gap junction adjacency matrix (electrical synapses should be symmetric)
-        gap_junctions = to_dense_adj(
-            edge_index=edge_index, edge_attr=edge_attr[:, 0]
-        ).squeeze(0)
-        if not torch.allclose(gap_junctions.T, gap_junctions):
-            raise AssertionError("The gap junction adjacency matrix is not symmetric.")
+        node_index = torch.arange(num_nodes, device=edge_index.device)
 
         # Create the graph data object with all the processed information
         graph = Data(x=x, edge_index=edge_index, edge_attr=edge_attr, y=y)
-        graph.pos = pos  # Add positional information to the graph object
+        graph.pos = pos_tensor_data  # Add positional information as tensor
 
         return graph, node_type, node_label, node_index, node_class, num_classes
 

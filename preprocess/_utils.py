@@ -350,7 +350,7 @@ def preprocess_connectome(raw_files, source_connectome=None):
         "white_1986_jsh": White1986JSHPreprocessor,
         "white_1986_jse": White1986JSEPreprocessor,
         "cook_2019": Cook2019Preprocessor,
-        None: DefaultPreprocessor,
+        None: DefaultPreprocessor, # for any dataset without defined preprocessor
     }
 
     # Preprocess all the connectomes including the default one
@@ -358,6 +358,8 @@ def preprocess_connectome(raw_files, source_connectome=None):
         for preprocessor_class in preprocessors.values():
             preprocessor_class().preprocess()
         # Create a file to indicate that the preprocessing was successful
+        # Only done if all were preprocessed (single dataset is fast enough to
+        # repreprocess each time)
         open(os.path.join(processed_path, ".processed"), "a").close()
 
     # Preprocess just the requested connectome

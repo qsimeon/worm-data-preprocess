@@ -55,7 +55,7 @@ def process_data(config: dict) -> None:
         logger.info(f"Finished preprocessing neural data in {end_time - start_time:.2f} seconds.")
     else:
         logger.info("Neural data already preprocessed.")
-        logger.info("Run `python cleanup.py` to delete previous preprocessed files.")
+        logger.info("Run `python cleanup.py -n` to delete preprocessed neural files.")
         
     
     # Preprocess the connectome data if not already done
@@ -63,7 +63,7 @@ def process_data(config: dict) -> None:
         os.path.join(ROOT_DIR, "data/processed/connectome/.processed")
     ):
         start_time = time.time()
-        logger.info("Preprocessing C. elegans connectome data...")
+        logger.info(f"Preprocessing C. elegans connectome data datasets={config['connectome_pub']}...")
         preprocess_connectome(
             raw_files=RAW_FILES, source_connectome=config["connectome_pub"]
         )
@@ -73,7 +73,6 @@ def process_data(config: dict) -> None:
         )
     else:
         logger.info("Connectome already preprocessed.")
-        # TODO: ensure cleanup.py clears connectome files
-        logger.info("Run `python cleanup.py` to delete previous preprocessed files.")
+        logger.info("Run `python cleanup.py -c` to delete preprocessed connectome files.")
 
     return None
