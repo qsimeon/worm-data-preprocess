@@ -67,6 +67,8 @@ class ConnectomeBasePreprocessor:
         self.neuron_to_idx = {
             label: idx for idx, label in enumerate(self.neuron_labels)
         }
+        # Pre-create reverse map for efficiency in helpers/warnings
+        self.idx_to_label = {idx: label for label, idx in self.neuron_to_idx.items()}
 
     def load_neuron_labels(self) -> List[str]:
         """Loads the neuron labels from a file or a constant.
