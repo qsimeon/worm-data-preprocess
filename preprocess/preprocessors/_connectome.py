@@ -4,10 +4,10 @@ which are subclasses of ConnectomeBasePreprocessor.
 
 Count: 10
 """
+
 from preprocess._pkg import *
 from preprocess.preprocessors._helpers import *
 from preprocess.preprocessors._base_preprocessors import ConnectomeBasePreprocessor
-
 
 
 class DefaultPreprocessor(ConnectomeBasePreprocessor):
@@ -215,8 +215,8 @@ class ChklovskiiPreprocessor(ConnectomeBasePreprocessor):
             # Add source info from original docstring if desired
             raise e
 
-        chem_data = [] # List[(neuron1_idx, neuron2_idx, weight)]
-        gap_data = [] # List[(neuron1_idx, neuron2_idx, weight)]
+        chem_data = []  # List[(neuron1_idx, neuron2_idx, weight)]
+        gap_data = []  # List[(neuron1_idx, neuron2_idx, weight)]
 
         # Iterate over each row in the DataFrame
         for i in range(len(df)):
@@ -225,18 +225,23 @@ class ChklovskiiPreprocessor(ConnectomeBasePreprocessor):
             synapse_type = df.loc[i, "Type"]  # Synapse type (e.g., EJ, Sp)
             num_connections_raw = df.loc[i, "Nbr"]  # Number of connections
 
-            if neuron1_label in self.neuron_labels and neuron2_label in self.neuron_labels:
+            if (
+                neuron1_label in self.neuron_labels
+                and neuron2_label in self.neuron_labels
+            ):
                 try:
                     weight = float(num_connections_raw)
                     if np.isnan(weight) or weight == 0:
-                        continue # skip adding this edge since it's just 0
-                    
+                        continue  # skip adding this edge since it's just 0
+
                     idx1 = self.neuron_to_idx[neuron1_label]
                     idx2 = self.neuron_to_idx[neuron2_label]
-                    
+
                     if synapse_type == "EJ":  # Electrical synapse (Gap Junction)
                         gap_data.append((idx1, idx2, weight))
-                    elif synapse_type == "Sp":  # Only process "Sp" type chemical synapses
+                    elif (
+                        synapse_type == "Sp"
+                    ):  # Only process "Sp" type chemical synapses
                         chem_data.append((idx1, idx2, weight))
 
                 except (ValueError, TypeError):
@@ -244,9 +249,9 @@ class ChklovskiiPreprocessor(ConnectomeBasePreprocessor):
                     print(
                         f"Warning: Could not parse weight '{num_connections_raw}' for ({neuron1_label}, {neuron2_label}). Skipping."
                     )
-                
+
         edge_index, edge_attr = self._process_and_coalesce_edges(chem_data, gap_data)
-        
+
         # Perform common preprocessing tasks to create graph tensors
         graph, node_type, node_label, node_index, node_class, num_classes = (
             self._preprocess_common_tasks(edge_index, edge_attr)
@@ -344,6 +349,7 @@ class OpenWormPreprocessor(ConnectomeBasePreprocessor):
             save_as, graph, node_type, node_label, node_index, node_class, num_classes
         )
 
+
 class Randi2023Preprocessor(ConnectomeBasePreprocessor):
     """
     Preprocessor for the Randi et al., 2023 connectome data.
@@ -359,7 +365,12 @@ class Randi2023Preprocessor(ConnectomeBasePreprocessor):
 
     def preprocess(self, save_as="graph_tensors_funconn.pt"):
         """
-        Preprocesses the Randi et al., 2023 connectome data and saves the graph tensors to a file.
+        Loads Randi et al. 2023 functional connectivity data, processes using base helpers, and saves tensors.
+
+        Reads connectivity and significance from an Excel file. Filters connections
+        based on significance (< 0.05). Treats significant connections as chemical
+        synapses (no gap junctions reported in this format). Calls base helpers
+        to process edges, then handles common tasks and saves.
 
         The data is read from an Excel file named "CElegansFunctionalConnectivity.xlsx" which is a renaming of the
         Supplementary Table 1 file "1586_2023_6683_MOESM3_ESM.xlsx" downloaded from the Supplementary information of the paper
@@ -379,42 +390,60 @@ class Randi2023Preprocessor(ConnectomeBasePreprocessor):
             5. Call the `_preprocess_common_tasks` method to perform common preprocessing tasks.
             6. Save the graph tensors to the specified file.
         """
-        edges = []
-        edge_attr = []
+        try:
+            xls = pd.ExcelFile(
+                os.path.join(RAW_DATA_DIR, "CElegansFunctionalConnectivity.xlsx")
+            )
+            df_connectivity = pd.read_excel(xls, sheet_name=0, index_col=0)
+            df_significance = pd.read_excel(xls, sheet_name=1, index_col=0)
+        except FileNotFoundError:
+            print(
+                f"ERROR: CElegansFunctionalConnectivity.xlsx not found in {RAW_DATA_DIR}"
+            )
+            raise
+        except Exception as e:
+            print(f"Error loading Randi2023 Excel file: {e}")
+            raise
 
-        xls = pd.ExcelFile(os.path.join(RAW_DATA_DIR, "CElegansFunctionalConnectivity.xlsx"))
-        df_connectivity = pd.read_excel(xls, sheet_name=0, index_col=0)
-        df_significance = pd.read_excel(xls, sheet_name=1, index_col=0)
+        chem_data = []  # List[Tuple[int, int, float]]
+        gap_data = []  # No gap junctions reported in this dataset format
 
-        for i, (row_label, row) in enumerate(df_connectivity.iterrows()):
-            for j, (col_label, value) in enumerate(row.items()):
-                if pd.isna(value) or np.isnan(value):
+        # Iterate through connectivity matrix
+        for row_label, row in df_connectivity.iterrows():
+            for col_label, value in row.items():
+                # Skip if value is missing/NaN or neurons are not in our master list
+                if pd.isna(value) or not (
+                    row_label in self.neuron_to_idx and col_label in self.neuron_to_idx
+                ):
                     continue
-                if row_label in self.neuron_labels and col_label in self.neuron_labels:
+
+                try:
+                    # Check significance threshold
                     if df_significance.loc[row_label, col_label] < 0.05:
-                        edges.append([row_label, col_label])
-                        edge_attr.append([0, value])
+                        weight = float(value)
+                        if weight != 0:  # Skip zero weights explicitly
+                            idx1 = self.neuron_to_idx[row_label]
+                            idx2 = self.neuron_to_idx[col_label]
+                            # Treat significant functional connectivity as a chemical connection
+                            chem_data.append((idx1, idx2, weight))
+                except (KeyError, ValueError, TypeError):
+                    # Handle cases where labels might not align perfectly in significance sheet
+                    # or value cannot be converted to float
+                    print(
+                        f"Warning: Skipping entry for ({row_label}, {col_label}) due to error."
+                    )
 
-        neuron_to_idx = {label: idx for idx, label in enumerate(self.neuron_labels)}
-        edge_attr = torch.tensor(edge_attr)
-        edge_index = torch.tensor(
-            [[neuron_to_idx[neuron1], neuron_to_idx[neuron2]] for neuron1, neuron2 in edges]
-        ).T
+        # Call helper to process edges (gap_data will be empty)
+        edge_index, edge_attr = self._process_and_coalesce_edges(chem_data, gap_data)
 
-        # Perform common preprocessing tasks to create graph tensors
+        # Call common tasks with the clean, coalesced input
         graph, node_type, node_label, node_index, node_class, num_classes = (
             self._preprocess_common_tasks(edge_index, edge_attr)
         )
 
-        # Save the processed graph tensors to the specified file
+        # Save the final processed graph tensors
         self._save_graph_tensors(
-            save_as,
-            graph,
-            node_type,
-            node_label,
-            node_index,
-            node_class,
-            num_classes,
+            save_as, graph, node_type, node_label, node_index, node_class, num_classes
         )
 
 
@@ -433,72 +462,73 @@ class Witvliet2020Preprocessor7(ConnectomeBasePreprocessor):
 
     def preprocess(self, save_as="graph_tensors_witvliet2020_7.pt"):
         """
-        Preprocesses the Witvliet et al., 2020 connectome data for adult 7 and saves the graph tensors to a file.
+        Loads Witvliet et al. 2020 (Adult 7) data, processes using base helpers, and saves tensors.
 
-        The data is read from a CSV file named "witvliet_2020_7.csv".
+        Reads connectivity from a CSV file where a 'type' column distinguishes
+        'chemical' and 'electrical' connections. Collects raw edge tuples, calls
+        base helpers to symmetrize gaps and coalesce edges, then handles common
+        tasks and saves.
 
         Args:
             save_as (str, optional): The name of the file to save the graph tensors to. Default is "graph_tensors_witvliet2020_7.pt".
-
-        Steps:
-            1. Load the connectome data from "witvliet_2020_7.csv".
-            2. Initialize lists for edges and edge attributes.
-            3. Iterate through the rows of the DataFrame:
-                - Extract neuron pairs and synapse type.
-                - Append edges and attributes to the respective lists.
-                - Ensure symmetry for electrical synapses by adding reverse direction edges.
-            4. Convert edge attributes and edge indices to tensors.
-            5. Call the `_preprocess_common_tasks` method to perform common preprocessing tasks.
-            6. Save the graph tensors to the specified file.
         """
-        df = pd.read_csv(os.path.join(RAW_DATA_DIR, "witvliet_2020_7.csv"), sep=r"[\t,]")
+        try:
+            df = pd.read_csv(
+                os.path.join(RAW_DATA_DIR, "witvliet_2020_7.csv"),
+                sep=r"[\t,]",
+                engine="python",
+            )
+        except FileNotFoundError:
+            print(f"ERROR: witvliet_2020_7.csv not found in {RAW_DATA_DIR}")
+            raise
+        except Exception as e:
+            print(f"Error loading Witvliet2020_7 CSV file: {e}")
+            raise
 
-        edges = []
-        edge_attr = []
+        chem_data = []  # List[Tuple[int, int, float]]
+        gap_data = []  # List[Tuple[int, int, float]]
 
+        # Iterate through rows and collect raw data tuples
         for i in range(len(df)):
-            neuron1 = df.loc[i, "pre"]
-            neuron2 = df.loc[i, "post"]
+            neuron1_label = df.loc[i, "pre"]
+            neuron2_label = df.loc[i, "post"]
+            edge_type = df.loc[i, "type"]
+            num_connections_raw = df.loc[i, "synapses"]
 
-            if neuron1 in self.neuron_labels and neuron2 in self.neuron_labels:
-                # NOTE: This file lists both types of edges in the same file with only the "type" column to differentiate.
-                # Therefore as we go through the lines, when see the [neuron_i, neuron_j] pair appearing a second time it is a different
-                # type of synapse (chemical vs. electrical) than the one appearing previously (electrical vs chemical, respectively).
-                # The first synapse with [neuron_i, neuron_j] pair encountered could be either electrical or chemical.
-                edge_type = df.loc[i, "type"]
-                num_connections = df.loc[i, "synapses"]
-                edges.append([neuron1, neuron2])
-                if edge_type == "electrical":
-                    edge_attr.append([num_connections, 0])
-                    # Adding the reverse direction to ensure symmetry of gap junctions
-                    edges.append([neuron2, neuron1])
-                    edge_attr.append([num_connections, 0])
-                elif edge_type == "chemical":
-                    # NOTE: Chemical synapses are asymmetric
-                    edge_attr.append([0, num_connections])
+            # Check if labels are known/valid
+            if (
+                neuron1_label in self.neuron_to_idx
+                and neuron2_label in self.neuron_to_idx
+            ):
+                try:
+                    weight = float(num_connections_raw)
+                    if np.isnan(weight) or weight == 0:
+                        continue  # Skip zero or invalid weights
 
-        edge_attr = torch.tensor(edge_attr)
-        edge_index = torch.tensor(
-            [
-                [self.neuron_to_idx[neuron1], self.neuron_to_idx[neuron2]]
-                for neuron1, neuron2 in edges
-            ]
-        ).T
+                    idx1 = self.neuron_to_idx[neuron1_label]
+                    idx2 = self.neuron_to_idx[neuron2_label]
 
-        # Perform common preprocessing tasks to create graph tensors
+                    # Append raw tuple based on type
+                    if edge_type == "electrical":
+                        gap_data.append((idx1, idx2, weight))
+                    elif edge_type == "chemical":
+                        chem_data.append((idx1, idx2, weight))
+
+                except (ValueError, TypeError):
+                    # Ignore rows where 'synapses' isn't a valid number
+                    pass
+
+        # Call helper to process, symmetrize gaps, and coalesce edges
+        edge_index, edge_attr = self._process_and_coalesce_edges(chem_data, gap_data)
+
+        # Call common tasks with the clean, coalesced input
         graph, node_type, node_label, node_index, node_class, num_classes = (
             self._preprocess_common_tasks(edge_index, edge_attr)
         )
 
-        # Save the processed graph tensors to the specified file
+        # Save the final processed graph tensors
         self._save_graph_tensors(
-            save_as,
-            graph,
-            node_type,
-            node_label,
-            node_index,
-            node_class,
-            num_classes,
+            save_as, graph, node_type, node_label, node_index, node_class, num_classes
         )
 
 
@@ -519,72 +549,74 @@ class Witvliet2020Preprocessor8(ConnectomeBasePreprocessor):
 
     def preprocess(self, save_as="graph_tensors_witvliet2020_8.pt"):
         """
-        Preprocesses the Witvliet et al., 2020 connectome data for adult 8 and saves the graph tensors to a file.
+        Loads Witvliet et al. 2020 (Adult 8) data, processes using base helpers, and saves tensors.
 
-        The data is read from a CSV file named "witvliet_2020_8.csv".
+        Reads connectivity from a CSV file "witvliet_2020_8.csv" where a 'type' column distinguishes
+        'chemical' and 'electrical' connections. Collects raw edge tuples, calls
+        base helpers to symmetrize gaps and coalesce edges, then handles common
+        tasks and saves.
+
 
         Args:
             save_as (str, optional): The name of the file to save the graph tensors to. Default is "graph_tensors_witvliet2020_8.pt".
-
-        Steps:
-            1. Load the connectome data from "witvliet_2020_8.csv".
-            2. Initialize lists for edges and edge attributes.
-            3. Iterate through the rows of the DataFrame:
-                - Extract neuron pairs and synapse type.
-                - Append edges and attributes to the respective lists.
-                - Ensure symmetry for electrical synapses by adding reverse direction edges.
-            4. Convert edge attributes and edge indices to tensors.
-            5. Call the `_preprocess_common_tasks` method to perform common preprocessing tasks.
-            6. Save the graph tensors to the specified file.
         """
-        df = pd.read_csv(os.path.join(RAW_DATA_DIR, "witvliet_2020_8.csv"), sep=r"[\t,]")
+        try:
+            df = pd.read_csv(
+                os.path.join(RAW_DATA_DIR, "witvliet_2020_8.csv"),
+                sep=r"[\t,]",
+                engine="python",
+            )
+        except FileNotFoundError:
+            print(f"ERROR: witvliet_2020_8.csv not found in {RAW_DATA_DIR}")
+            raise
+        except Exception as e:
+            print(f"Error loading Witvliet2020_8 CSV file: {e}")
+            raise
 
-        edges = []
-        edge_attr = []
+        chem_data = []  # List[Tuple[int, int, float]]
+        gap_data = []  # List[Tuple[int, int, float]]
 
+        # Iterate through rows and collect raw data tuples
         for i in range(len(df)):
-            neuron1 = df.loc[i, "pre"]
-            neuron2 = df.loc[i, "post"]
+            neuron1_label = df.loc[i, "pre"]
+            neuron2_label = df.loc[i, "post"]
+            edge_type = df.loc[i, "type"]
+            num_connections_raw = df.loc[i, "synapses"]
 
-            if neuron1 in self.neuron_labels and neuron2 in self.neuron_labels:
-                # NOTE: This file lists both types of edges in the same file with only the "type" column to differentiate.
-                # Therefore as we go through the lines, when see the [neuron_i, neuron_j] pair appearing a second time it is a different
-                # type of synapse (chemical vs. electrical) than the one appearing previously (electrical vs chemical, respectively).
-                # The first synapse with [neuron_i, neuron_j] pair encountered could be either electrical or chemical.
-                edge_type = df.loc[i, "type"]
-                num_connections = df.loc[i, "synapses"]
-                edges.append([neuron1, neuron2])
-                if edge_type == "electrical":
-                    edge_attr.append([num_connections, 0])
-                    # Adding the reverse direction to ensure symmetry of gap junctions
-                    edges.append([neuron2, neuron1])
-                    edge_attr.append([num_connections, 0])
-                elif edge_type == "chemical":
-                    # NOTE: Chemical synapses are asymmetric
-                    edge_attr.append([0, num_connections])
+            # Check if labels are known/valid
+            if (
+                neuron1_label in self.neuron_to_idx
+                and neuron2_label in self.neuron_to_idx
+            ):
+                try:
+                    weight = float(num_connections_raw)
+                    if np.isnan(weight) or weight == 0:
+                        continue  # Skip zero or invalid weights
 
-        edge_attr = torch.tensor(edge_attr)
-        edge_index = torch.tensor(
-            [
-                [self.neuron_to_idx[neuron1], self.neuron_to_idx[neuron2]]
-                for neuron1, neuron2 in edges
-            ]
-        ).T
+                    idx1 = self.neuron_to_idx[neuron1_label]
+                    idx2 = self.neuron_to_idx[neuron2_label]
 
-        # Perform common preprocessing tasks to create graph tensors
+                    # Append raw tuple based on type
+                    if edge_type == "electrical":
+                        gap_data.append((idx1, idx2, weight))
+                    elif edge_type == "chemical":
+                        chem_data.append((idx1, idx2, weight))
+
+                except (ValueError, TypeError):
+                    # Ignore rows where 'synapses' isn't a valid number
+                    pass
+
+        # Call helper to process, symmetrize gaps, and coalesce edges
+        edge_index, edge_attr = self._process_and_coalesce_edges(chem_data, gap_data)
+
+        # Call common tasks with the clean, coalesced input
         graph, node_type, node_label, node_index, node_class, num_classes = (
             self._preprocess_common_tasks(edge_index, edge_attr)
         )
 
-        # Save the processed graph tensors to the specified file
+        # Save the final processed graph tensors
         self._save_graph_tensors(
-            save_as,
-            graph,
-            node_type,
-            node_label,
-            node_index,
-            node_class,
-            num_classes,
+            save_as, graph, node_type, node_label, node_index, node_class, num_classes
         )
 
 
@@ -600,6 +632,7 @@ class Cook2019Preprocessor(ConnectomeBasePreprocessor):
         preprocess(save_as="graph_tensors_cook2019.pt"):
             Preprocesses the Cook et al., 2019 connectome data and saves the graph tensors to a file.
     """
+
     def preprocess(self, save_as="graph_tensors_cook2019.pt"):
         """
         Loads Cook et al. 2019 data from Excel, processes using base helpers, and saves tensors.
@@ -616,7 +649,7 @@ class Cook2019Preprocessor(ConnectomeBasePreprocessor):
         PRE_SYNAPTIC_NEURON_COL = 2
         DATA_START_ROW = 3
         DATA_START_COL = 3
-        chem_data = [] # List[Tuple[int, int, float]]
+        chem_data = []  # List[Tuple[int, int, float]]
         gap_data = []  # List[Tuple[int, int, float]]
 
         # --- Load Excel File ---
@@ -634,13 +667,15 @@ class Cook2019Preprocessor(ConnectomeBasePreprocessor):
 
             for j, pre_label in enumerate(pre_labels):
                 # Skip if pre-neuron is invalid or not in our master list
-                if pd.isna(pre_label) or pre_label not in self.neuron_to_idx: continue
+                if pd.isna(pre_label) or pre_label not in self.neuron_to_idx:
+                    continue
                 idx_pre = self.neuron_to_idx[pre_label]
                 actual_row_index = DATA_START_ROW + j
 
                 for i, post_label in enumerate(post_labels):
                     # Skip if post-neuron is invalid or not in our master list
-                    if pd.isna(post_label) or post_label not in self.neuron_to_idx: continue
+                    if pd.isna(post_label) or post_label not in self.neuron_to_idx:
+                        continue
                     idx_post = self.neuron_to_idx[post_label]
                     actual_col_index = DATA_START_COL + i
 
@@ -649,24 +684,30 @@ class Cook2019Preprocessor(ConnectomeBasePreprocessor):
                         if not pd.isna(weight):
                             weight_float = float(weight)
                             if weight_float != 0:
-                                data_list_to_append.append((idx_pre, idx_post, weight_float))
+                                data_list_to_append.append(
+                                    (idx_pre, idx_post, weight_float)
+                                )
                     except (IndexError, ValueError, TypeError):
-                        pass # Ignore errors during cell processing
+                        pass  # Ignore errors during cell processing
 
         # --- Process Sheets ---
         try:
-            df_chem = pd.read_excel(xlsx_file, sheet_name="hermaphrodite chemical", header=None)
+            df_chem = pd.read_excel(
+                xlsx_file, sheet_name="hermaphrodite chemical", header=None
+            )
             extract_raw_data_from_sheet(df_chem, chem_data)
         except Exception as e:
             print(f"Error processing Cook2019 chemical sheet: {e}")
-            raise(e)
+            raise (e)
 
         try:
-            df_gap = pd.read_excel(xlsx_file, sheet_name="hermaphrodite gap jn symmetric", header=None)
+            df_gap = pd.read_excel(
+                xlsx_file, sheet_name="hermaphrodite gap jn symmetric", header=None
+            )
             extract_raw_data_from_sheet(df_gap, gap_data)
         except Exception as e:
             print(f"Error processing Cook2019 gap junction sheet: {e}")
-            raise(e)
+            raise (e)
 
         # --- Call Helper to Process Edges ---
         edge_index, edge_attr = self._process_and_coalesce_edges(chem_data, gap_data)
@@ -713,7 +754,9 @@ class White1986WholePreprocessor(ConnectomeBasePreprocessor):
             5. Call the `_preprocess_common_tasks` method to perform common preprocessing tasks.
             6. Save the graph tensors to the specified file.
         """
-        df = pd.read_csv(os.path.join(RAW_DATA_DIR, "white_1986_whole.csv"), sep=r"[\t,]")
+        df = pd.read_csv(
+            os.path.join(RAW_DATA_DIR, "white_1986_whole.csv"), sep=r"[\t,]"
+        )
 
         edges = []
         edge_attr = []

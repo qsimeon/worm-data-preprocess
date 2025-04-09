@@ -341,7 +341,7 @@ def preprocess_connectome(raw_files, source_connectome=None):
     preprocessors = {
         "openworm": OpenWormPreprocessor,
         "chklovskii": ChklovskiiPreprocessor,
-        "funconn": Randi2023Preprocessor,
+        "funconn": Randi2023Preprocessor, # just a synonym
         "randi_2023": Randi2023Preprocessor,
         "witvliet_7": Witvliet2020Preprocessor7,
         "witvliet_8": Witvliet2020Preprocessor8,
