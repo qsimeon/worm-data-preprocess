@@ -12,7 +12,7 @@ from preprocess.preprocessors._base_preprocessors import ConnectomeBasePreproces
 
 class DefaultPreprocessor(ConnectomeBasePreprocessor):
     """
-    Default preprocessor for connectome data.
+    Default preprocessor for connectome data (non-dataset specific)
 
     This class extends the ConnectomeBasePreprocessor to provide specific preprocessing
     steps for the default connectome data. It includes methods for loading, processing,
@@ -24,175 +24,146 @@ class DefaultPreprocessor(ConnectomeBasePreprocessor):
     unzip the archive in the data/raw folder, then run the MATLAB script `export_nodes_edges.m`.
 
     Methods:
-        preprocess(save_as="graph_tensors.pt"):
+        preprocess(save_as="graph_tensors_default.pt"):
             Preprocesses the connectome data and saves the graph tensors to a file.
     """
 
-    def preprocess(self, save_as="graph_tensors.pt"):
+    def preprocess(self, save_as="graph_tensors_default.pt"):
         """
-        Preprocesses the connectome data and saves the graph tensors to a file.
+        Loads default connectome data from CSVs, processes using base class helpers, and saves tensors.
 
-        The data is read from multiple CSV files named "GHermChem_Edges.csv",
-        "GHermChem_Nodes.csv", "GHermGap_Edges.csv", and "GHermGap_Nodes.csv".
+        Reads chemical and gap junction data from GHerm* CSV files, standardizes
+        neuron names, filters based on known neuron lists, collects raw edge tuples,
+        calls base helpers to symmetrize gaps and coalesce edges, then processes
+        common tasks and saves the final graph.
 
         Args:
-            save_as (str, optional): The name of the file to save the graph tensors to. Default is "graph_tensors.pt".
-
-        Steps:
-            1. Load the chemical synapse edges and nodes from "GHermChem_Edges.csv" and "GHermChem_Nodes.csv".
-            2. Load the electrical synapse edges and nodes from "GHermGap_Edges.csv" and "GHermGap_Nodes.csv".
-            3. Initialize sets for all C. elegans hermaphrodite neurons.
-            4. Process the chemical synapse edges and nodes:
-                - Filter edges and nodes based on neuron labels.
-                - Append edges and attributes to the respective lists.
-            5. Process the electrical synapse edges and nodes:
-                - Filter edges and nodes based on neuron labels.
-                - Append edges and attributes to the respective lists.
-            6. Convert edge attributes and edge indices to tensors.
-            7. Call the `preprocess_common_tasks` method to perform common preprocessing tasks.
-            8. Save the graph tensors to the specified file.
+            save_as (str, optional): Filename for saved tensors. Default "graph_tensors_default.pt".
         """
-        # # >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
-        # # Override DefaultProprecessor with Witvliet2020Preprocessor7, a more up-to-date connectome of C. elegans.
-        # return Witvliet2020Preprocessor7.preprocess(self, save_as="graph_tensors.pt")
-        # # <<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<
-        # Names of all C. elegans hermaphrodite neurons
+        # Override DefaultProprecessor with Witvliet2020Preprocessor7, a more up-to-date connectome of C. elegans.
+        # return Witvliet2020Preprocessor7().preprocess(save_as="graph_tensors.pt") # Note: Instantiation needed
+
         neurons_all = set(self.neuron_labels)
         sep = r"[\t,]"
 
-        # Chemical synapses nodes and edges
-        GHermChem_Edges = pd.read_csv(
-            os.path.join(RAW_DATA_DIR, "GHermChem_Edges.csv"), sep=sep
-        )  # edges
-        GHermChem_Nodes = pd.read_csv(
-            os.path.join(RAW_DATA_DIR, "GHermChem_Nodes.csv"), sep=sep
-        )  # nodes
+        # --- Load Data ---
+        try:
+            GHermChem_Edges_df = pd.read_csv(
+                os.path.join(RAW_DATA_DIR, "GHermChem_Edges.csv"),
+                sep=sep,
+                engine="python",
+            )
+            GHermElec_Sym_Edges_df = pd.read_csv(
+                os.path.join(RAW_DATA_DIR, "GHermElec_Sym_Edges.csv"),
+                sep=sep,
+                engine="python",
+            )
+            GHermChem_Nodes_df = pd.read_csv(
+                os.path.join(RAW_DATA_DIR, "GHermChem_Nodes.csv"),
+                sep=sep,
+                engine="python",
+            )
+            GHermElec_Sym_Nodes_df = pd.read_csv(
+                os.path.join(RAW_DATA_DIR, "GHermElec_Sym_Nodes.csv"),
+                sep=sep,
+                engine="python",
+            )
+        except FileNotFoundError as e:
+            print(
+                f"Error loading default connectome CSV files: {e}. See class docstring for source info."
+            )
+            raise e
 
-        # Gap junctions
-        GHermElec_Sym_Edges = pd.read_csv(
-            os.path.join(RAW_DATA_DIR, "GHermElec_Sym_Edges.csv"), sep=sep
-        )  # edges
-        GHermElec_Sym_Nodes = pd.read_csv(
-            os.path.join(RAW_DATA_DIR, "GHermElec_Sym_Nodes.csv"), sep=sep
-        )  # nodes
+        # --- Standardize and Filter Node Lists ---
+        def standardize_and_filter_nodes(df_nodes):
+            # Specific name cleaning for this dataset format
+            df_nodes["Name"] = [
+                v.replace("0", "") if not str(v).endswith("0") else str(v)
+                for v in df_nodes["Name"]
+            ]
+            return df_nodes[df_nodes["Name"].isin(neurons_all)].reset_index(drop=True)
 
-        # Neurons involved in gap junctions
-        df = GHermElec_Sym_Nodes
-        df["Name"] = [
-            v.replace("0", "") if not v.endswith("0") else v for v in df["Name"]
-        ]  # standard naming
-        Ggap_nodes = (
-            df[df["Name"].isin(neurons_all)].sort_values(by=["Name"]).reset_index()
-        )  # filter out non-neurons
+        Gsyn_nodes_df = standardize_and_filter_nodes(GHermChem_Nodes_df)
+        Ggap_nodes_df = standardize_and_filter_nodes(GHermElec_Sym_Nodes_df)
+        valid_syn_neurons = set(Gsyn_nodes_df.Name)
+        valid_gap_neurons = set(Ggap_nodes_df.Name)
 
-        # Neurons (i.e. nodes) in chemical synapses
-        df = GHermChem_Nodes
-        df["Name"] = [
-            v.replace("0", "") if not v.endswith("0") else v for v in df["Name"]
-        ]  # standard naming
-        Gsyn_nodes = (
-            df[df["Name"].isin(neurons_all)].sort_values(by=["Name"]).reset_index()
-        )  # filter out non-neurons
+        chem_data = []  # List[Tuple[int, int, float]]
+        gap_data = []  # List[Tuple[int, int, float]]
 
-        # Gap junctions edges
-        df = GHermElec_Sym_Edges
-        df["EndNodes_1"] = [
-            v.replace("0", "") if not v.endswith("0") else v for v in df["EndNodes_1"]
+        # --- Process Chemical Synapses ---
+        df_chem = GHermChem_Edges_df
+        df_chem["EndNodes_1"] = [
+            v.replace("0", "") if not str(v).endswith("0") else str(v)
+            for v in df_chem["EndNodes_1"]
         ]
-        df["EndNodes_2"] = [
-            v.replace("0", "") if not v.endswith("0") else v for v in df["EndNodes_2"]
+        df_chem["EndNodes_2"] = [
+            v.replace("0", "") if not str(v).endswith("0") else str(v)
+            for v in df_chem["EndNodes_2"]
         ]
-        inds = [
-            i
-            for i in GHermElec_Sym_Edges.index
-            if df.iloc[i]["EndNodes_1"] in set(Ggap_nodes.Name)
-            and df.iloc[i]["EndNodes_2"] in set(Ggap_nodes.Name)
-        ]  # indices
-        Ggap_edges = df.iloc[inds].reset_index(drop=True)
 
-        # Chemical synapses
-        df = GHermChem_Edges
-        df["EndNodes_1"] = [
-            v.replace("0", "") if not v.endswith("0") else v for v in df["EndNodes_1"]
+        for _, row in df_chem.iterrows():
+            n1_label, n2_label, weight = (
+                row["EndNodes_1"],
+                row["EndNodes_2"],
+                row["Weight"],
+            )
+            if (
+                n1_label in self.neuron_to_idx
+                and n2_label in self.neuron_to_idx
+                and n1_label in valid_syn_neurons
+                and n2_label in valid_syn_neurons
+            ):
+                try:
+                    weight_float = float(weight)
+                    if weight_float != 0:
+                        idx1 = self.neuron_to_idx[n1_label]
+                        idx2 = self.neuron_to_idx[n2_label]
+                        chem_data.append((idx1, idx2, weight_float))
+                except (ValueError, TypeError):
+                    pass  # Ignore non-numeric weights
+
+        # --- Process Gap Junctions ---
+        df_gap = GHermElec_Sym_Edges_df
+        df_gap["EndNodes_1"] = [
+            v.replace("0", "") if not str(v).endswith("0") else str(v)
+            for v in df_gap["EndNodes_1"]
         ]
-        df["EndNodes_2"] = [
-            v.replace("0", "") if not v.endswith("0") else v for v in df["EndNodes_2"]
+        df_gap["EndNodes_2"] = [
+            v.replace("0", "") if not str(v).endswith("0") else str(v)
+            for v in df_gap["EndNodes_2"]
         ]
-        inds = [
-            i
-            for i in GHermChem_Edges.index
-            if df.iloc[i]["EndNodes_1"] in set(Gsyn_nodes.Name)
-            and df.iloc[i]["EndNodes_2"] in set(Gsyn_nodes.Name)
-        ]  # indices
-        Gsyn_edges = df.iloc[inds].reset_index(drop=True)
 
-        # Map neuron names (IDs) to indices
-        neuron_to_idx = dict(zip(self.neuron_labels, range(len(self.neuron_labels))))
+        for _, row in df_gap.iterrows():
+            n1_label, n2_label, weight = (
+                row["EndNodes_1"],
+                row["EndNodes_2"],
+                row["Weight"],
+            )
+            if (
+                n1_label in self.neuron_to_idx
+                and n2_label in self.neuron_to_idx
+                and n1_label in valid_gap_neurons
+                and n2_label in valid_gap_neurons
+            ):
+                try:
+                    weight_float = float(weight)
+                    if weight_float != 0:
+                        idx1 = self.neuron_to_idx[n1_label]
+                        idx2 = self.neuron_to_idx[n2_label]
+                        gap_data.append((idx1, idx2, weight_float))
+                except (ValueError, TypeError):
+                    pass  # Ignore non-numeric weights
 
-        # edge_index for gap junctions
-        arr = Ggap_edges[["EndNodes_1", "EndNodes_2"]].values
-        ggap_edge_index = torch.empty(*arr.shape, dtype=torch.long)
-        for i, row in enumerate(arr):
-            ggap_edge_index[i, :] = torch.tensor([neuron_to_idx[x] for x in row], dtype=torch.long)
-        ggap_edge_index = ggap_edge_index.T  # [2, num_edges]
-        # Do the reverse direction to ensure symmetry of gap junctions
-        ggap_edge_index = torch.hstack((ggap_edge_index, ggap_edge_index[[1, 0], :]))
+        # --- Call Helpers to Process Edges ---
+        edge_index, edge_attr = self._process_and_coalesce_edges(chem_data, gap_data)
 
-        # edge_index for chemical synapses
-        arr = Gsyn_edges[["EndNodes_1", "EndNodes_2"]].values
-        gsyn_edge_index = torch.empty(*arr.shape, dtype=torch.long)
-        for i, row in enumerate(arr):
-            gsyn_edge_index[i, :] = torch.tensor([neuron_to_idx[x] for x in row], dtype=torch.long)
-        gsyn_edge_index = gsyn_edge_index.T  # [2, num_edges]
-
-        # edge attributes
-        # NOTE: The first feature represents the weight of the gap junctions;
-        # The second feature represents the weight of the chemical synapses.
-        num_edge_features = 2
-
-        # edge_attr for gap junctions
-        num_edges = len(Ggap_edges)
-        ggap_edge_attr = torch.empty(
-            num_edges, num_edge_features, dtype=torch.float
-        )  # [num_edges, num_edge_features]
-        for i, weight in enumerate(Ggap_edges.Weight.values):
-            ggap_edge_attr[i, :] = torch.tensor(
-                [weight, 0], dtype=torch.float
-            )  # electrical synapse encoded as [1,0]
-        # Do the reverse direction to ensure symmetry of gap junctions
-        ggap_edge_attr = torch.vstack((ggap_edge_attr, ggap_edge_attr))
-
-        # edge_attr for chemical synapses
-        num_edges = len(Gsyn_edges)
-        gsyn_edge_attr = torch.empty(
-            num_edges, num_edge_features, dtype=torch.float
-        )  # [num_edges, num_edge_features]
-        for i, weight in enumerate(Gsyn_edges.Weight.values):
-            gsyn_edge_attr[i, :] = torch.tensor(
-                [0, weight], dtype=torch.float
-            )  # chemical synapse encoded as [0,1]
-
-        # Merge electrical and chemical graphs into a single connectome graph
-        combined_edge_index = torch.hstack((ggap_edge_index, gsyn_edge_index))
-        combined_edge_attr = torch.vstack((ggap_edge_attr, gsyn_edge_attr))
-        edge_index, edge_attr = coalesce(
-            combined_edge_index, combined_edge_attr, reduce="add"
-        )  # features = [elec_wt, chem_wt]
-
-        # Perform common preprocessing tasks to create graph tensors
+        # --- Common Tasks & Save ---
         graph, node_type, node_label, node_index, node_class, num_classes = (
-            self.preprocess_common_tasks(edge_index, edge_attr)
+            self._preprocess_common_tasks(edge_index, edge_attr)
         )
-
-        # Save the processed graph tensors to the specified file
-        self.save_graph_tensors(
-            save_as,
-            graph,
-            node_type,
-            node_label,
-            node_index,
-            node_class,
-            num_classes,
+        self._save_graph_tensors(
+            save_as, graph, node_type, node_label, node_index, node_class, num_classes
         )
 
 
@@ -236,7 +207,7 @@ class ChklovskiiPreprocessor(ConnectomeBasePreprocessor):
             3. Append edges and attributes (synapse strength).
             4. Ensure symmetry for electrical synapses.
             5. Convert edge attributes and edge indices to tensors.
-            6. Call the `preprocess_common_tasks` method to create graph tensors.
+            6. Call the `_preprocess_common_tasks` method to create graph tensors.
             7. Save the graph tensors to the specified file.
         """
         # Load the XLS file and extract data from the 'NeuronConnect.csv' sheet
@@ -283,11 +254,11 @@ class ChklovskiiPreprocessor(ConnectomeBasePreprocessor):
 
         # Perform common preprocessing tasks to create graph tensors
         graph, node_type, node_label, node_index, node_class, num_classes = (
-            self.preprocess_common_tasks(edge_index, edge_attr)
+            self._preprocess_common_tasks(edge_index, edge_attr)
         )
 
         # Save the processed graph tensors to the specified file
-        self.save_graph_tensors(
+        self._save_graph_tensors(
             save_as,
             graph,
             node_type,
@@ -313,83 +284,70 @@ class OpenWormPreprocessor(ConnectomeBasePreprocessor):
 
     def preprocess(self, save_as="graph_tensors_openworm.pt"):
         """
-        Preprocesses the OpenWorm connectome data and saves the graph tensors to a file.
+        Loads OpenWorm connectome from Excel, processes using base helpers, and saves tensors.
 
-        The data is read directly from an XLS file named "OpenWorm_CElegansNeuronTables.xls", which is a rename of the
-        file downloaded from the OpenWorm repository: https://github.com/openworm/c302/blob/master/c302/CElegansNeuronTables.xls
+        Reads data from the 'Connectome' sheet, identifies chemical ('Send') and
+        'GapJunction' types, collects raw edge tuples, calls base helpers to
+        symmetrize gaps and coalesce edges, then processes common tasks and saves.
 
         Args:
-            save_as (str, optional): The name of the file to save the graph tensors to. Default is "graph_tensors_openworm.pt".
-
-        Steps:
-            1. Load the connectome data from the first sheet of the "OpenWorm_CElegansNeuronTables.xls" file.
-            2. Initialize lists for edges and edge attributes.
-            3. Iterate through the rows of the DataFrame:
-                - Extract neuron pairs and synapse type.
-                - Append edges and attributes to the respective lists.
-                - Ensure symmetry for electrical synapses by adding reverse direction edges.
-            4. Convert edge attributes and edge indices to tensors.
-            5. Call the `preprocess_common_tasks` method to perform common preprocessing tasks.
-            6. Save the graph tensors to the specified file.
+            save_as (str, optional): Filename for saved tensors. Default "graph_tensors_openworm.pt".
         """
-        # Load the XLS file and extract data from the first sheet "Connectome"
-        df = pd.read_excel(
-            os.path.join(RAW_DATA_DIR, "OpenWorm_CElegansNeuronTables.xls"), sheet_name="Connectome"
-        )
+        try:
+            df = pd.read_excel(
+                os.path.join(RAW_DATA_DIR, "OpenWorm_CElegansNeuronTables.xls"),
+                sheet_name="Connectome",
+            )
+        except FileNotFoundError:
+            print(
+                f"ERROR: OpenWorm_CElegansNeuronTables.xls not found in {RAW_DATA_DIR}"
+            )
+            raise
+        except Exception as e:
+            print(f"Error loading OpenWorm Excel file: {e}")
+            raise
 
-        edges = []
-        edge_attr = []
+        chem_data = []  # List[Tuple[int, int, float]]
+        gap_data = []  # List[Tuple[int, int, float]]
 
+        # Iterate through rows and collect raw data tuples
         for i in range(len(df)):
-            neuron1 = df.loc[i, "Origin"]
-            neuron2 = df.loc[i, "Target"]
+            neuron1_label = df.loc[i, "Origin"]
+            neuron2_label = df.loc[i, "Target"]
+            synapse_type = df.loc[i, "Type"]
+            num_connections_raw = df.loc[i, "Number of Connections"]
 
-            if neuron1 in self.neuron_labels and neuron2 in self.neuron_labels:
-                # Determine the synapse type and number of connections
-                synapse_type = df.loc[i, "Type"]
-                num_connections = df.loc[i, "Number of Connections"]
+            if (
+                neuron1_label in self.neuron_to_idx
+                and neuron2_label in self.neuron_to_idx
+            ):
+                try:
+                    weight = float(num_connections_raw)
+                    if np.isnan(weight) or weight == 0:
+                        continue  # Skip zero or invalid weights
 
-                # Add the connection between neuron1 and neuron2
-                edges.append([neuron1, neuron2])
+                    idx1 = self.neuron_to_idx[neuron1_label]
+                    idx2 = self.neuron_to_idx[neuron2_label]
 
-                if synapse_type == "GapJunction":  # electrical synapse
-                    edge_attr.append(
-                        [num_connections, 0]
-                    )  # electrical synapse encoded as [num_connections, 0]
+                    if synapse_type == "GapJunction":
+                        gap_data.append((idx1, idx2, weight))
+                    elif synapse_type == "Send":  # 'Send' means chemical
+                        chem_data.append((idx1, idx2, weight))
 
-                    # Ensure symmetry for gap junctions by adding reverse connection
-                    edges.append([neuron2, neuron1])
-                    edge_attr.append([num_connections, 0])
-                elif synapse_type == "Send":  # chemical synapse
-                    edge_attr.append(
-                        [0, num_connections]
-                    )  # chemical synapse encoded as [0, num_connections]
+                except (ValueError, TypeError):
+                    # Ignore rows where 'Number of Connections' isn't a valid number
+                    pass
 
-        # Convert to torch tensors
-        edge_attr = torch.tensor(edge_attr)
-        edge_index = torch.tensor(
-            [
-                [self.neuron_to_idx[neuron1], self.neuron_to_idx[neuron2]]
-                for neuron1, neuron2 in edges
-            ]
-        ).T
+        # --- Call Helpers to Process Edges ---
+        edge_index, edge_attr = self._process_and_coalesce_edges(chem_data, gap_data)
 
-        # Perform common preprocessing tasks to create graph tensors
+        # --- Common Tasks & Save ---
         graph, node_type, node_label, node_index, node_class, num_classes = (
-            self.preprocess_common_tasks(edge_index, edge_attr)
+            self._preprocess_common_tasks(edge_index, edge_attr)
         )
-
-        # Save the processed graph tensors to the specified file
-        self.save_graph_tensors(
-            save_as,
-            graph,
-            node_type,
-            node_label,
-            node_index,
-            node_class,
-            num_classes,
+        self._save_graph_tensors(
+            save_as, graph, node_type, node_label, node_index, node_class, num_classes
         )
-
 
 class Randi2023Preprocessor(ConnectomeBasePreprocessor):
     """
@@ -423,7 +381,7 @@ class Randi2023Preprocessor(ConnectomeBasePreprocessor):
                 - Extract neuron pairs and their connectivity values.
                 - Check significance and append edges and attributes to the respective lists.
             4. Convert edge attributes and edge indices to tensors.
-            5. Call the `preprocess_common_tasks` method to perform common preprocessing tasks.
+            5. Call the `_preprocess_common_tasks` method to perform common preprocessing tasks.
             6. Save the graph tensors to the specified file.
         """
         edges = []
@@ -450,11 +408,11 @@ class Randi2023Preprocessor(ConnectomeBasePreprocessor):
 
         # Perform common preprocessing tasks to create graph tensors
         graph, node_type, node_label, node_index, node_class, num_classes = (
-            self.preprocess_common_tasks(edge_index, edge_attr)
+            self._preprocess_common_tasks(edge_index, edge_attr)
         )
 
         # Save the processed graph tensors to the specified file
-        self.save_graph_tensors(
+        self._save_graph_tensors(
             save_as,
             graph,
             node_type,
@@ -495,7 +453,7 @@ class Witvliet2020Preprocessor7(ConnectomeBasePreprocessor):
                 - Append edges and attributes to the respective lists.
                 - Ensure symmetry for electrical synapses by adding reverse direction edges.
             4. Convert edge attributes and edge indices to tensors.
-            5. Call the `preprocess_common_tasks` method to perform common preprocessing tasks.
+            5. Call the `_preprocess_common_tasks` method to perform common preprocessing tasks.
             6. Save the graph tensors to the specified file.
         """
         df = pd.read_csv(os.path.join(RAW_DATA_DIR, "witvliet_2020_7.csv"), sep=r"[\t,]")
@@ -534,11 +492,11 @@ class Witvliet2020Preprocessor7(ConnectomeBasePreprocessor):
 
         # Perform common preprocessing tasks to create graph tensors
         graph, node_type, node_label, node_index, node_class, num_classes = (
-            self.preprocess_common_tasks(edge_index, edge_attr)
+            self._preprocess_common_tasks(edge_index, edge_attr)
         )
 
         # Save the processed graph tensors to the specified file
-        self.save_graph_tensors(
+        self._save_graph_tensors(
             save_as,
             graph,
             node_type,
@@ -581,7 +539,7 @@ class Witvliet2020Preprocessor8(ConnectomeBasePreprocessor):
                 - Append edges and attributes to the respective lists.
                 - Ensure symmetry for electrical synapses by adding reverse direction edges.
             4. Convert edge attributes and edge indices to tensors.
-            5. Call the `preprocess_common_tasks` method to perform common preprocessing tasks.
+            5. Call the `_preprocess_common_tasks` method to perform common preprocessing tasks.
             6. Save the graph tensors to the specified file.
         """
         df = pd.read_csv(os.path.join(RAW_DATA_DIR, "witvliet_2020_8.csv"), sep=r"[\t,]")
@@ -620,11 +578,11 @@ class Witvliet2020Preprocessor8(ConnectomeBasePreprocessor):
 
         # Perform common preprocessing tasks to create graph tensors
         graph, node_type, node_label, node_index, node_class, num_classes = (
-            self.preprocess_common_tasks(edge_index, edge_attr)
+            self._preprocess_common_tasks(edge_index, edge_attr)
         )
 
         # Save the processed graph tensors to the specified file
-        self.save_graph_tensors(
+        self._save_graph_tensors(
             save_as,
             graph,
             node_type,
@@ -647,92 +605,83 @@ class Cook2019Preprocessor(ConnectomeBasePreprocessor):
         preprocess(save_as="graph_tensors_cook2019.pt"):
             Preprocesses the Cook et al., 2019 connectome data and saves the graph tensors to a file.
     """
-
     def preprocess(self, save_as="graph_tensors_cook2019.pt"):
         """
-        Preprocesses the Cook et al., 2019 connectome data and saves the graph tensors to a file.
+        Loads Cook et al. 2019 data from Excel, processes using base helpers, and saves tensors.
 
-        The data is read from an Excel file named "Cook2019.xlsx".
+        Reads chemical and gap junction matrices from separate sheets, extracts raw
+        edge tuples, calls base helpers to symmetrize gaps and coalesce edges,
+        then processes common tasks and saves the final graph.
 
         Args:
-            save_as (str, optional): The name of the file to save the graph tensors to. Default is "graph_tensors_cook2019.pt".
-
-        Steps:
-            1. Load the chemical synapse data from the "hermaphrodite chemical" sheet in "Cook2019.xlsx".
-            2. Load the electrical synapse data from the "hermaphrodite gap jn symmetric" sheet in "Cook2019.xlsx".
-            3. Initialize lists for edges and edge attributes.
-            4. Iterate through the chemical synapse data:
-                - Extract neuron pairs and their weights.
-                - Append edges and attributes to the respective lists.
-            5. Iterate through the electrical synapse data:
-                - Extract neuron pairs and their weights.
-                - Append edges and attributes to the respective lists.
-                - Ensure symmetry for electrical synapses by adding reverse direction edges.
-            6. Convert edge attributes and edge indices to tensors.
-            7. Call the `preprocess_common_tasks` method to perform common preprocessing tasks.
-            8. Save the graph tensors to the specified file.
+            save_as (str, optional): Filename for saved tensors. Default "graph_tensors_cook2019.pt".
         """
-        edges = []
-        edge_attr = []
+        # --- Constants for sheet structure ---
+        POST_SYNAPTIC_NEURON_ROW = 2
+        PRE_SYNAPTIC_NEURON_COL = 2
+        DATA_START_ROW = 3
+        DATA_START_COL = 3
+        chem_data = [] # List[Tuple[int, int, float]]
+        gap_data = []  # List[Tuple[int, int, float]]
 
-        xlsx_file = pd.ExcelFile(os.path.join(RAW_DATA_DIR, "Cook2019.xlsx"))
+        # --- Load Excel File ---
+        try:
+            xlsx_file = pd.ExcelFile(os.path.join(RAW_DATA_DIR, "Cook2019.xlsx"))
+        except FileNotFoundError:
+            print(f"ERROR: Cook2019.xlsx not found in {RAW_DATA_DIR}")
+            raise
 
-        df = pd.read_excel(xlsx_file, sheet_name="hermaphrodite chemical")
+        # --- Internal helper to extract raw data from a sheet matrix ---
+        def extract_raw_data_from_sheet(df, data_list_to_append):
+            # Extract neuron lists from the specific locations in this sheet format
+            post_labels = df.iloc[POST_SYNAPTIC_NEURON_ROW, DATA_START_COL:].tolist()
+            pre_labels = df.iloc[DATA_START_ROW:, PRE_SYNAPTIC_NEURON_COL].tolist()
 
-        for i, line in enumerate(df):
-            if i > 2:
-                col_data = df.iloc[:-1, i]
-                for j, weight in enumerate(col_data):
-                    if j > 1 and not pd.isna(df.iloc[j, i]):
-                        post = df.iloc[1, i]
-                        pre = df.iloc[j, 2]
-                        if pre in self.neuron_labels and post in self.neuron_labels:
-                            edges.append([pre, post])
-                            edge_attr.append(
-                                [0, df.iloc[j, i]]
-                            )  # second edge_attr feature is for gap junction weights
+            for j, pre_label in enumerate(pre_labels):
+                # Skip if pre-neuron is invalid or not in our master list
+                if pd.isna(pre_label) or pre_label not in self.neuron_to_idx: continue
+                idx_pre = self.neuron_to_idx[pre_label]
+                actual_row_index = DATA_START_ROW + j
 
-        df = pd.read_excel(xlsx_file, sheet_name="hermaphrodite gap jn symmetric")
+                for i, post_label in enumerate(post_labels):
+                    # Skip if post-neuron is invalid or not in our master list
+                    if pd.isna(post_label) or post_label not in self.neuron_to_idx: continue
+                    idx_post = self.neuron_to_idx[post_label]
+                    actual_col_index = DATA_START_COL + i
 
-        for i, line in enumerate(df):
-            if i > 2:
-                col_data = df.iloc[:-1, i]
-                for j, weight in enumerate(col_data):
-                    if j > 1 and not pd.isna(df.iloc[j, i]):
-                        post = df.iloc[1, i]
-                        pre = df.iloc[j, 2]
-                        if pre in self.neuron_labels and post in self.neuron_labels:
-                            if [pre, post] in edges:
-                                edge_idx = edges.index([pre, post])
-                                edge_attr[edge_idx][0] = df.iloc[
-                                    j, i
-                                ]  # first edge_attr feature is for gap junction weights
-                            else:
-                                edges.append([pre, post])
-                                edge_attr.append([df.iloc[j, i], 0])
+                    try:
+                        weight = df.iloc[actual_row_index, actual_col_index]
+                        if not pd.isna(weight):
+                            weight_float = float(weight)
+                            if weight_float != 0:
+                                data_list_to_append.append((idx_pre, idx_post, weight_float))
+                    except (IndexError, ValueError, TypeError):
+                        pass # Ignore errors during cell processing
 
-        edge_attr = torch.tensor(edge_attr)
-        edge_index = torch.tensor(
-            [
-                [self.neuron_to_idx[neuron1], self.neuron_to_idx[neuron2]]
-                for neuron1, neuron2 in edges
-            ]
-        ).T
+        # --- Process Sheets ---
+        try:
+            df_chem = pd.read_excel(xlsx_file, sheet_name="hermaphrodite chemical", header=None)
+            extract_raw_data_from_sheet(df_chem, chem_data)
+        except Exception as e:
+            print(f"Error processing Cook2019 chemical sheet: {e}")
+            raise(e)
 
-        # Perform common preprocessing tasks to create graph tensors
+        try:
+            df_gap = pd.read_excel(xlsx_file, sheet_name="hermaphrodite gap jn symmetric", header=None)
+            extract_raw_data_from_sheet(df_gap, gap_data)
+        except Exception as e:
+            print(f"Error processing Cook2019 gap junction sheet: {e}")
+            raise(e)
+
+        # --- Call Helper to Process Edges ---
+        edge_index, edge_attr = self._process_and_coalesce_edges(chem_data, gap_data)
+
+        # --- Common Tasks & Save ---
         graph, node_type, node_label, node_index, node_class, num_classes = (
-            self.preprocess_common_tasks(edge_index, edge_attr)
+            self._preprocess_common_tasks(edge_index, edge_attr)
         )
-
-        # Save the processed graph tensors to the specified file
-        self.save_graph_tensors(
-            save_as,
-            graph,
-            node_type,
-            node_label,
-            node_index,
-            node_class,
-            num_classes,
+        self._save_graph_tensors(
+            save_as, graph, node_type, node_label, node_index, node_class, num_classes
         )
 
 
@@ -766,7 +715,7 @@ class White1986WholePreprocessor(ConnectomeBasePreprocessor):
                 - Append edges and attributes to the respective lists.
                 - Ensure symmetry for electrical synapses by adding reverse direction edges.
             4. Convert edge attributes and edge indices to tensors.
-            5. Call the `preprocess_common_tasks` method to perform common preprocessing tasks.
+            5. Call the `_preprocess_common_tasks` method to perform common preprocessing tasks.
             6. Save the graph tensors to the specified file.
         """
         df = pd.read_csv(os.path.join(RAW_DATA_DIR, "white_1986_whole.csv"), sep=r"[\t,]")
@@ -805,11 +754,11 @@ class White1986WholePreprocessor(ConnectomeBasePreprocessor):
 
         # Perform common preprocessing tasks to create graph tensors
         graph, node_type, node_label, node_index, node_class, num_classes = (
-            self.preprocess_common_tasks(edge_index, edge_attr)
+            self._preprocess_common_tasks(edge_index, edge_attr)
         )
 
         # Save the processed graph tensors to the specified file
-        self.save_graph_tensors(
+        self._save_graph_tensors(
             save_as,
             graph,
             node_type,
@@ -850,7 +799,7 @@ class White1986N2UPreprocessor(ConnectomeBasePreprocessor):
                 - Append edges and attributes to the respective lists.
                 - Ensure symmetry for electrical synapses by adding reverse direction edges.
             4. Convert edge attributes and edge indices to tensors.
-            5. Call the `preprocess_common_tasks` method to perform common preprocessing tasks.
+            5. Call the `_preprocess_common_tasks` method to perform common preprocessing tasks.
             6. Save the graph tensors to the specified file.
         """
         df = pd.read_csv(os.path.join(RAW_DATA_DIR, "white_1986_n2u.csv"), sep=r"[\t,]")
@@ -889,11 +838,11 @@ class White1986N2UPreprocessor(ConnectomeBasePreprocessor):
 
         # Perform common preprocessing tasks to create graph tensors
         graph, node_type, node_label, node_index, node_class, num_classes = (
-            self.preprocess_common_tasks(edge_index, edge_attr)
+            self._preprocess_common_tasks(edge_index, edge_attr)
         )
 
         # Save the processed graph tensors to the specified file
-        self.save_graph_tensors(
+        self._save_graph_tensors(
             save_as,
             graph,
             node_type,
@@ -934,7 +883,7 @@ class White1986JSHPreprocessor(ConnectomeBasePreprocessor):
                 - Append edges and attributes to the respective lists.
                 - Ensure symmetry for electrical synapses by adding reverse direction edges.
             4. Convert edge attributes and edge indices to tensors.
-            5. Call the `preprocess_common_tasks` method to perform common preprocessing tasks.
+            5. Call the `_preprocess_common_tasks` method to perform common preprocessing tasks.
             6. Save the graph tensors to the specified file.
         """
         df = pd.read_csv(os.path.join(RAW_DATA_DIR, "white_1986_jsh.csv"), sep=r"[\t,]")
@@ -973,11 +922,11 @@ class White1986JSHPreprocessor(ConnectomeBasePreprocessor):
 
         # Perform common preprocessing tasks to create graph tensors
         graph, node_type, node_label, node_index, node_class, num_classes = (
-            self.preprocess_common_tasks(edge_index, edge_attr)
+            self._preprocess_common_tasks(edge_index, edge_attr)
         )
 
         # Save the processed graph tensors to the specified file
-        self.save_graph_tensors(
+        self._save_graph_tensors(
             save_as,
             graph,
             node_type,
@@ -1018,7 +967,7 @@ class White1986JSEPreprocessor(ConnectomeBasePreprocessor):
                 - Append edges and attributes to the respective lists.
                 - Ensure symmetry for electrical synapses by adding reverse direction edges.
             4. Convert edge attributes and edge indices to tensors.
-            5. Call the `preprocess_common_tasks` method to perform common preprocessing tasks.
+            5. Call the `_preprocess_common_tasks` method to perform common preprocessing tasks.
             6. Save the graph tensors to the specified file.
         """
         df = pd.read_csv(os.path.join(RAW_DATA_DIR, "white_1986_jse.csv"), sep=r"[\t,]")
@@ -1057,11 +1006,11 @@ class White1986JSEPreprocessor(ConnectomeBasePreprocessor):
 
         # Perform common preprocessing tasks to create graph tensors
         graph, node_type, node_label, node_index, node_class, num_classes = (
-            self.preprocess_common_tasks(edge_index, edge_attr)
+            self._preprocess_common_tasks(edge_index, edge_attr)
         )
 
         # Save the processed graph tensors to the specified file
-        self.save_graph_tensors(
+        self._save_graph_tensors(
             save_as,
             graph,
             node_type,
