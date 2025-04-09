@@ -33,8 +33,7 @@ PREPROCESS_CONFIG = {
     #     "all",
     #     "openworm",
     #     "chklovskii",
-    #     "funconn",
-    #     "randi_2023",
+    #     "randi_2023", # "funconn" is a synonym
     #     "witvliet_7",
     #     "witvliet_8",
     #     "white_1986_whole",
@@ -43,8 +42,7 @@ PREPROCESS_CONFIG = {
     #     "white_1986_jse",
     #     "cook_2019"
     # ]
-    "connectome_pub": "default",
-    
+    "connectome_pub": "all",
     ## PREPROCESS PARAMETERS
     # Time interval in seconds for resampling neural activity
     "resample_dt": 0.333,

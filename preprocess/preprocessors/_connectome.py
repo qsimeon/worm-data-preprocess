@@ -736,74 +736,72 @@ class White1986WholePreprocessor(ConnectomeBasePreprocessor):
 
     def preprocess(self, save_as="graph_tensors_white1986_whole.pt"):
         """
-        Preprocesses the White et al., 1986 connectome data for the whole organism and saves the graph tensors to a file.
+        Loads White et al. 1986 (Whole) data, processes using base helpers, and saves tensors.
 
-        The data is read from a CSV file named "white_1986_whole.csv".
+        Reads connectivity from 'white_1986_whole.csv', identifies 'chemical'
+        and 'electrical' types, collects raw edge tuples, calls base helpers to
+        symmetrize gaps and coalesce edges, then handles common tasks and saves.
 
         Args:
             save_as (str, optional): The name of the file to save the graph tensors to. Default is "graph_tensors_white1986_whole.pt".
-
-        Steps:
-            1. Load the connectome data from "white_1986_whole.csv".
-            2. Initialize lists for edges and edge attributes.
-            3. Iterate through the rows of the DataFrame:
-                - Extract neuron pairs and synapse type.
-                - Append edges and attributes to the respective lists.
-                - Ensure symmetry for electrical synapses by adding reverse direction edges.
-            4. Convert edge attributes and edge indices to tensors.
-            5. Call the `_preprocess_common_tasks` method to perform common preprocessing tasks.
-            6. Save the graph tensors to the specified file.
         """
-        df = pd.read_csv(
-            os.path.join(RAW_DATA_DIR, "white_1986_whole.csv"), sep=r"[\t,]"
-        )
+        csv_filename = "white_1986_whole.csv"
+        try:
+            # Assuming comma OR tab separation
+            df = pd.read_csv(
+                os.path.join(RAW_DATA_DIR, csv_filename), sep=r"[\t,]", engine="python"
+            )
+        except FileNotFoundError:
+            print(f"ERROR: {csv_filename} not found in {RAW_DATA_DIR}")
+            raise
+        except Exception as e:
+            print(f"Error loading {csv_filename}: {e}")
+            raise
 
-        edges = []
-        edge_attr = []
+        chem_data = []  # List[Tuple[int, int, float]]
+        gap_data = []  # List[Tuple[int, int, float]]
 
+        # Iterate through rows and collect raw data tuples
         for i in range(len(df)):
-            neuron1 = df.loc[i, "pre"]
-            neuron2 = df.loc[i, "post"]
+            neuron1_label = df.loc[i, "pre"]
+            neuron2_label = df.loc[i, "post"]
+            edge_type = df.loc[i, "type"]
+            num_connections_raw = df.loc[i, "synapses"]
 
-            if neuron1 in self.neuron_labels and neuron2 in self.neuron_labels:
-                # NOTE: This file lists both types of edges in the same file with only the "type" column to differentiate.
-                # Therefore as we go through the lines, when see the [neuron_i, neuron_j] pair appearing a second time it is a different
-                # type of synapse (chemical vs. electrical) than the one appearing previously (electrical vs chemical, respectively).
-                # The first synapse with [neuron_i, neuron_j] pair encountered could be either electrical or chemical.
-                edge_type = df.loc[i, "type"]
-                num_connections = df.loc[i, "synapses"]
-                edges.append([neuron1, neuron2])
-                if edge_type == "electrical":
-                    edge_attr.append([num_connections, 0])
-                    # Adding the reverse direction to ensure symmetry of gap junctions
-                    edges.append([neuron2, neuron1])
-                    edge_attr.append([num_connections, 0])
-                elif edge_type == "chemical":
-                    # NOTE: Chemical synapses are asymmetric
-                    edge_attr.append([0, num_connections])
+            # Check if labels are known/valid
+            if (
+                neuron1_label in self.neuron_to_idx
+                and neuron2_label in self.neuron_to_idx
+            ):
+                try:
+                    weight = float(num_connections_raw)
+                    if np.isnan(weight) or weight == 0:
+                        continue  # Skip zero or invalid weights
 
-        edge_attr = torch.tensor(edge_attr)
-        edge_index = torch.tensor(
-            [
-                [self.neuron_to_idx[neuron1], self.neuron_to_idx[neuron2]]
-                for neuron1, neuron2 in edges
-            ]
-        ).T
+                    idx1 = self.neuron_to_idx[neuron1_label]
+                    idx2 = self.neuron_to_idx[neuron2_label]
 
-        # Perform common preprocessing tasks to create graph tensors
+                    # Append raw tuple based on type
+                    if edge_type == "electrical":
+                        gap_data.append((idx1, idx2, weight))
+                    elif edge_type == "chemical":
+                        chem_data.append((idx1, idx2, weight))
+
+                except (ValueError, TypeError):
+                    # Ignore rows where 'synapses' isn't a valid number
+                    pass
+
+        # Call helper to process, symmetrize gaps, and coalesce edges
+        edge_index, edge_attr = self._process_and_coalesce_edges(chem_data, gap_data)
+
+        # Call common tasks with the clean, coalesced input
         graph, node_type, node_label, node_index, node_class, num_classes = (
             self._preprocess_common_tasks(edge_index, edge_attr)
         )
 
-        # Save the processed graph tensors to the specified file
+        # Save the final processed graph tensors
         self._save_graph_tensors(
-            save_as,
-            graph,
-            node_type,
-            node_label,
-            node_index,
-            node_class,
-            num_classes,
+            save_as, graph, node_type, node_label, node_index, node_class, num_classes
         )
 
 
@@ -822,72 +820,72 @@ class White1986N2UPreprocessor(ConnectomeBasePreprocessor):
 
     def preprocess(self, save_as="graph_tensors_white1986_n2u.pt"):
         """
-        Preprocesses the White et al., 1986 connectome data for the N2U organism and saves the graph tensors to a file.
+        Loads White et al. 1986 (N2U) data, processes using base helpers, and saves tensors.
 
-        The data is read from a CSV file named "white_1986_n2u.csv".
+        Reads connectivity from 'white_1986_n2u.csv', identifies 'chemical'
+        and 'electrical' types, collects raw edge tuples, calls base helpers to
+        symmetrize gaps and coalesce edges, then handles common tasks and saves.
 
         Args:
             save_as (str, optional): The name of the file to save the graph tensors to. Default is "graph_tensors_white1986_n2u.pt".
-
-        Steps:
-            1. Load the connectome data from "white_1986_n2u.csv".
-            2. Initialize lists for edges and edge attributes.
-            3. Iterate through the rows of the DataFrame:
-                - Extract neuron pairs and synapse type.
-                - Append edges and attributes to the respective lists.
-                - Ensure symmetry for electrical synapses by adding reverse direction edges.
-            4. Convert edge attributes and edge indices to tensors.
-            5. Call the `_preprocess_common_tasks` method to perform common preprocessing tasks.
-            6. Save the graph tensors to the specified file.
         """
-        df = pd.read_csv(os.path.join(RAW_DATA_DIR, "white_1986_n2u.csv"), sep=r"[\t,]")
+        csv_filename = "white_1986_n2u.csv"
+        try:
+            # Assuming comma OR tab separation
+            df = pd.read_csv(
+                os.path.join(RAW_DATA_DIR, csv_filename), sep=r"[\t,]", engine="python"
+            )
+        except FileNotFoundError:
+            print(f"ERROR: {csv_filename} not found in {RAW_DATA_DIR}")
+            raise
+        except Exception as e:
+            print(f"Error loading {csv_filename}: {e}")
+            raise
 
-        edges = []
-        edge_attr = []
+        chem_data = []  # List[Tuple[int, int, float]]
+        gap_data = []  # List[Tuple[int, int, float]]
 
+        # Iterate through rows and collect raw data tuples
         for i in range(len(df)):
-            neuron1 = df.loc[i, "pre"]
-            neuron2 = df.loc[i, "post"]
+            neuron1_label = df.loc[i, "pre"]
+            neuron2_label = df.loc[i, "post"]
+            edge_type = df.loc[i, "type"]
+            num_connections_raw = df.loc[i, "synapses"]
 
-            if neuron1 in self.neuron_labels and neuron2 in self.neuron_labels:
-                # NOTE: This file lists both types of edges in the same file with only the "type" column to differentiate.
-                # Therefore as we go through the lines, when see the [neuron_i, neuron_j] pair appearing a second time it is a different
-                # type of synapse (chemical vs. electrical) than the one appearing previously (electrical vs chemical, respectively).
-                # The first synapse with [neuron_i, neuron_j] pair encountered could be either electrical or chemical.
-                edge_type = df.loc[i, "type"]
-                num_connections = df.loc[i, "synapses"]
-                edges.append([neuron1, neuron2])
-                if edge_type == "electrical":
-                    edge_attr.append([num_connections, 0])
-                    # Adding the reverse direction to ensure symmetry of gap junctions
-                    edges.append([neuron2, neuron1])
-                    edge_attr.append([num_connections, 0])
-                elif edge_type == "chemical":
-                    # NOTE: Chemical synapses are asymmetric
-                    edge_attr.append([0, num_connections])
+            # Check if labels are known/valid
+            if (
+                neuron1_label in self.neuron_to_idx
+                and neuron2_label in self.neuron_to_idx
+            ):
+                try:
+                    weight = float(num_connections_raw)
+                    if np.isnan(weight) or weight == 0:
+                        continue  # Skip zero or invalid weights
 
-        edge_attr = torch.tensor(edge_attr)
-        edge_index = torch.tensor(
-            [
-                [self.neuron_to_idx[neuron1], self.neuron_to_idx[neuron2]]
-                for neuron1, neuron2 in edges
-            ]
-        ).T
+                    idx1 = self.neuron_to_idx[neuron1_label]
+                    idx2 = self.neuron_to_idx[neuron2_label]
 
-        # Perform common preprocessing tasks to create graph tensors
+                    # Append raw tuple based on type
+                    if edge_type == "electrical":
+                        gap_data.append((idx1, idx2, weight))
+                    elif edge_type == "chemical":
+                        chem_data.append((idx1, idx2, weight))
+
+                except (ValueError, TypeError):
+                    # Ignore rows where 'synapses' isn't a valid number
+                    pass
+
+        # Call helper to process, symmetrize gaps, and coalesce edges
+        edge_index, edge_attr = self._process_and_coalesce_edges(chem_data, gap_data)
+
+        # Call common tasks with the clean, coalesced input
         graph, node_type, node_label, node_index, node_class, num_classes = (
             self._preprocess_common_tasks(edge_index, edge_attr)
         )
 
-        # Save the processed graph tensors to the specified file
+        # Save the final processed graph tensors
         self._save_graph_tensors(
-            save_as,
-            graph,
-            node_type,
-            node_label,
-            node_index,
-            node_class,
-            num_classes,
+            save_as, graph, node_type, node_label, node_index, node_class, num_classes
         )
 
 
@@ -906,74 +904,73 @@ class White1986JSHPreprocessor(ConnectomeBasePreprocessor):
 
     def preprocess(self, save_as="graph_tensors_white1986_jsh.pt"):
         """
-        Preprocesses the White et al., 1986 connectome data for the JSH organism and saves the graph tensors to a file.
+        Loads White et al. 1986 (JSH) data, processes using base helpers, and saves tensors.
 
-        The data is read from a CSV file named "white_1986_jsh.csv".
+        Reads connectivity from 'white_1986_jsh.csv', identifies 'chemical'
+        and 'electrical' types, collects raw edge tuples, calls base helpers to
+        symmetrize gaps and coalesce edges, then handles common tasks and saves.
 
         Args:
             save_as (str, optional): The name of the file to save the graph tensors to. Default is "graph_tensors_white1986_jsh.pt".
-
-        Steps:
-            1. Load the connectome data from "white_1986_jsh.csv".
-            2. Initialize lists for edges and edge attributes.
-            3. Iterate through the rows of the DataFrame:
-                - Extract neuron pairs and synapse type.
-                - Append edges and attributes to the respective lists.
-                - Ensure symmetry for electrical synapses by adding reverse direction edges.
-            4. Convert edge attributes and edge indices to tensors.
-            5. Call the `_preprocess_common_tasks` method to perform common preprocessing tasks.
-            6. Save the graph tensors to the specified file.
         """
-        df = pd.read_csv(os.path.join(RAW_DATA_DIR, "white_1986_jsh.csv"), sep=r"[\t,]")
+        csv_filename = "white_1986_jsh.csv"
+        try:
+            # Assuming comma OR tab separation
+            df = pd.read_csv(
+                os.path.join(RAW_DATA_DIR, csv_filename), sep=r"[\t,]", engine="python"
+            )
+        except FileNotFoundError:
+            print(f"ERROR: {csv_filename} not found in {RAW_DATA_DIR}")
+            raise
+        except Exception as e:
+            print(f"Error loading {csv_filename}: {e}")
+            raise
 
-        edges = []
-        edge_attr = []
+        chem_data = []  # List[Tuple[int, int, float]]
+        gap_data = []  # List[Tuple[int, int, float]]
 
+        # Iterate through rows and collect raw data tuples
         for i in range(len(df)):
-            neuron1 = df.loc[i, "pre"]
-            neuron2 = df.loc[i, "post"]
+            neuron1_label = df.loc[i, "pre"]
+            neuron2_label = df.loc[i, "post"]
+            edge_type = df.loc[i, "type"]
+            num_connections_raw = df.loc[i, "synapses"]
 
-            if neuron1 in self.neuron_labels and neuron2 in self.neuron_labels:
-                # NOTE: This file lists both types of edges in the same file with only the "type" column to differentiate.
-                # Therefore as we go through the lines, when see the [neuron_i, neuron_j] pair appearing a second time it is a different
-                # type of synapse (chemical vs. electrical) than the one appearing previously (electrical vs chemical, respectively).
-                # The first synapse with [neuron_i, neuron_j] pair encountered could be either electrical or chemical.
-                edge_type = df.loc[i, "type"]
-                num_connections = df.loc[i, "synapses"]
-                edges.append([neuron1, neuron2])
-                if edge_type == "electrical":
-                    edge_attr.append([num_connections, 0])
-                    # Adding the reverse direction to ensure symmetry of gap junctions
-                    edges.append([neuron2, neuron1])
-                    edge_attr.append([num_connections, 0])
-                elif edge_type == "chemical":
-                    # NOTE: Chemical synapses are asymmetric
-                    edge_attr.append([0, num_connections])
+            # Check if labels are known/valid
+            if (
+                neuron1_label in self.neuron_to_idx
+                and neuron2_label in self.neuron_to_idx
+            ):
+                try:
+                    weight = float(num_connections_raw)
+                    if np.isnan(weight) or weight == 0:
+                        continue  # Skip zero or invalid weights
 
-        edge_attr = torch.tensor(edge_attr)
-        edge_index = torch.tensor(
-            [
-                [self.neuron_to_idx[neuron1], self.neuron_to_idx[neuron2]]
-                for neuron1, neuron2 in edges
-            ]
-        ).T
+                    idx1 = self.neuron_to_idx[neuron1_label]
+                    idx2 = self.neuron_to_idx[neuron2_label]
 
-        # Perform common preprocessing tasks to create graph tensors
+                    # Append raw tuple based on type
+                    if edge_type == "electrical":
+                        gap_data.append((idx1, idx2, weight))
+                    elif edge_type == "chemical":
+                        chem_data.append((idx1, idx2, weight))
+
+                except (ValueError, TypeError):
+                    # Ignore rows where 'synapses' isn't a valid number
+                    pass
+
+        # Call helper to process, symmetrize gaps, and coalesce edges
+        edge_index, edge_attr = self._process_and_coalesce_edges(chem_data, gap_data)
+
+        # Call common tasks with the clean, coalesced input
         graph, node_type, node_label, node_index, node_class, num_classes = (
             self._preprocess_common_tasks(edge_index, edge_attr)
         )
 
-        # Save the processed graph tensors to the specified file
+        # Save the final processed graph tensors
         self._save_graph_tensors(
-            save_as,
-            graph,
-            node_type,
-            node_label,
-            node_index,
-            node_class,
-            num_classes,
+            save_as, graph, node_type, node_label, node_index, node_class, num_classes
         )
-
 
 class White1986JSEPreprocessor(ConnectomeBasePreprocessor):
     """
@@ -990,70 +987,70 @@ class White1986JSEPreprocessor(ConnectomeBasePreprocessor):
 
     def preprocess(self, save_as="graph_tensors_white1986_jse.pt"):
         """
-        Preprocesses the White et al., 1986 connectome data for the JSE organism and saves the graph tensors to a file.
+        Loads White et al. 1986 (JSE) data, processes using base helpers, and saves tensors.
 
-        The data is read from a CSV file named "white_1986_jse.csv".
+        Reads connectivity from 'white_1986_jse.csv', identifies 'chemical'
+        and 'electrical' types, collects raw edge tuples, calls base helpers to
+        symmetrize gaps and coalesce edges, then handles common tasks and saves.
 
         Args:
             save_as (str, optional): The name of the file to save the graph tensors to. Default is "graph_tensors_white1986_jse.pt".
-
-        Steps:
-            1. Load the connectome data from "white_1986_jse.csv".
-            2. Initialize lists for edges and edge attributes.
-            3. Iterate through the rows of the DataFrame:
-                - Extract neuron pairs and synapse type.
-                - Append edges and attributes to the respective lists.
-                - Ensure symmetry for electrical synapses by adding reverse direction edges.
-            4. Convert edge attributes and edge indices to tensors.
-            5. Call the `_preprocess_common_tasks` method to perform common preprocessing tasks.
-            6. Save the graph tensors to the specified file.
         """
-        df = pd.read_csv(os.path.join(RAW_DATA_DIR, "white_1986_jse.csv"), sep=r"[\t,]")
+        csv_filename = "white_1986_jse.csv"
+        try:
+            # Assuming comma OR tab separation
+            df = pd.read_csv(
+                os.path.join(RAW_DATA_DIR, csv_filename), sep=r"[\t,]", engine="python"
+            )
+        except FileNotFoundError:
+            print(f"ERROR: {csv_filename} not found in {RAW_DATA_DIR}")
+            raise
+        except Exception as e:
+            print(f"Error loading {csv_filename}: {e}")
+            raise
 
-        edges = []
-        edge_attr = []
+        chem_data = []  # List[Tuple[int, int, float]]
+        gap_data = []  # List[Tuple[int, int, float]]
 
+        # Iterate through rows and collect raw data tuples
         for i in range(len(df)):
-            neuron1 = df.loc[i, "pre"]
-            neuron2 = df.loc[i, "post"]
+            neuron1_label = df.loc[i, "pre"]
+            neuron2_label = df.loc[i, "post"]
+            edge_type = df.loc[i, "type"]
+            num_connections_raw = df.loc[i, "synapses"]
 
-            if neuron1 in self.neuron_labels and neuron2 in self.neuron_labels:
-                # NOTE: This file lists both types of edges in the same file with only the "type" column to differentiate.
-                # Therefore as we go through the lines, when see the [neuron_i, neuron_j] pair appearing a second time it is a different
-                # type of synapse (chemical vs. electrical) than the one appearing previously (electrical vs chemical, respectively).
-                # The first synapse with [neuron_i, neuron_j] pair encountered could be either electrical or chemical.
-                edge_type = df.loc[i, "type"]
-                num_connections = df.loc[i, "synapses"]
-                edges.append([neuron1, neuron2])
-                if edge_type == "electrical":
-                    edge_attr.append([num_connections, 0])
-                    # Adding the reverse direction to ensure symmetry of gap junctions
-                    edges.append([neuron2, neuron1])
-                    edge_attr.append([num_connections, 0])
-                elif edge_type == "chemical":
-                    # NOTE: Chemical synapses are asymmetric
-                    edge_attr.append([0, num_connections])
+            # Check if labels are known/valid
+            if (
+                neuron1_label in self.neuron_to_idx
+                and neuron2_label in self.neuron_to_idx
+            ):
+                try:
+                    weight = float(num_connections_raw)
+                    if np.isnan(weight) or weight == 0:
+                        continue  # Skip zero or invalid weights
 
-        edge_attr = torch.tensor(edge_attr)
-        edge_index = torch.tensor(
-            [
-                [self.neuron_to_idx[neuron1], self.neuron_to_idx[neuron2]]
-                for neuron1, neuron2 in edges
-            ]
-        ).T
+                    idx1 = self.neuron_to_idx[neuron1_label]
+                    idx2 = self.neuron_to_idx[neuron2_label]
 
-        # Perform common preprocessing tasks to create graph tensors
+                    # Append raw tuple based on type
+                    if edge_type == "electrical":
+                        gap_data.append((idx1, idx2, weight))
+                    elif edge_type == "chemical":
+                        chem_data.append((idx1, idx2, weight))
+
+                except (ValueError, TypeError):
+                    # Ignore rows where 'synapses' isn't a valid number
+                    pass
+
+        # Call helper to process, symmetrize gaps, and coalesce edges
+        edge_index, edge_attr = self._process_and_coalesce_edges(chem_data, gap_data)
+
+        # Call common tasks with the clean, coalesced input
         graph, node_type, node_label, node_index, node_class, num_classes = (
             self._preprocess_common_tasks(edge_index, edge_attr)
         )
 
-        # Save the processed graph tensors to the specified file
+        # Save the final processed graph tensors
         self._save_graph_tensors(
-            save_as,
-            graph,
-            node_type,
-            node_label,
-            node_index,
-            node_class,
-            num_classes,
+            save_as, graph, node_type, node_label, node_index, node_class, num_classes
         )
