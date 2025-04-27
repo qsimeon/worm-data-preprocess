@@ -20,12 +20,18 @@ import pandas as pd
 import numpy as np
 import os
 import glob
+import sys
 from collections import defaultdict
 
-
 # --- Configuration ---
-PROCESSED_DATA_DIR = "./data/processed/connectome"
+# Add the parent directory of 'preprocess' to sys.path so we can import preprocess._pkg
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
+if PROJECT_ROOT not in sys.path:
+    sys.path.insert(0, PROJECT_ROOT)
 from preprocess._pkg import NEURON_LABELS
+
+PROCESSED_DATA_DIR = os.path.join(PROJECT_ROOT, "data/processed/connectome")
 
 
 # --- Helper Mappings ---
@@ -71,13 +77,14 @@ def analyze_all_connectomes(data_dir: str) -> pd.DataFrame:
         )
 
     # Store collected data per DIRECTED pair (neuron1_label, neuron2_label)
-    # will calculate the symmetric gap mean later
     collected_data = defaultdict(lambda: {
-        "gap_vals_A_to_B": [], # Raw gap A->B from each source
-        "gap_vals_B_to_A": [], # Raw gap B->A from each source (used for symmetric mean)
-        "chem_vals_A_to_B": [], # Raw chem A->B from each source
-        "func_val_A_to_B": np.nan, # Specific func A->B from funconn source
-        "sources": set()
+        "gap_vals_A_to_B": [],
+        "gap_vals_B_to_A": [],
+        "chem_vals_A_to_B": [],
+        "func_val_A_to_B": np.nan,
+        "gap_sources": set(),
+        "chem_sources": set(),
+        "func_sources": set(),
     })
 
     print(f"Found {len(pt_files)} potential connectome files to analyze.")
@@ -85,7 +92,7 @@ def analyze_all_connectomes(data_dir: str) -> pd.DataFrame:
     # --- Step 1: Load data and collect raw values per directed edge ---
     for filepath in pt_files:
         dataset_name = get_dataset_name(filepath)
-        print(f"Processing: {dataset_name} ({os.path.basename(filepath)})")
+        print(f"Loading: {dataset_name} ({os.path.basename(filepath)})")
         try:
             data = torch.load(filepath, map_location=torch.device('cpu')) # Load to CPU
             edge_index = data.get('edge_index')
@@ -122,16 +129,17 @@ def analyze_all_connectomes(data_dir: str) -> pd.DataFrame:
                         gap_w = attr[0].item()
                         chem_w = attr[1].item()
 
-                        collected_data[pair_key]["sources"].add(dataset_name)
                         if gap_w != 0:
                             collected_data[pair_key]["gap_vals_A_to_B"].append(gap_w)
+                            collected_data[pair_key]["gap_sources"].add(dataset_name)
                         if chem_w != 0:
                             collected_data[pair_key]["chem_vals_A_to_B"].append(chem_w)
+                            collected_data[pair_key]["chem_sources"].add(dataset_name)
 
                         # Special handling for functional connectivity dataset
                         if dataset_name == "funconn" and chem_w != 0:
-                            # Randi2023 uses the chemical slot for functional weight
                             collected_data[pair_key]["func_val_A_to_B"] = chem_w
+                            collected_data[pair_key]["func_sources"].add(dataset_name)
 
                     # Also check the reverse edge B->A to collect its gap weight for symmetric calculation later
                     edge_map_idx_rev = edge_lookup.get((idx2, idx1))
@@ -140,6 +148,7 @@ def analyze_all_connectomes(data_dir: str) -> pd.DataFrame:
                         gap_w_rev = attr_rev[0].item()
                         if gap_w_rev != 0:
                              collected_data[pair_key]["gap_vals_B_to_A"].append(gap_w_rev)
+                             collected_data[pair_key]["gap_sources"].add(dataset_name)
 
 
         except Exception as e:
@@ -171,19 +180,20 @@ def analyze_all_connectomes(data_dir: str) -> pd.DataFrame:
             # Get directed functional weight A->B
             func_AB = data_AB["func_val_A_to_B"]
 
-            # Get combined sources (any dataset mentioning A->B or B->A contributes)
-            sources_AB = sorted(list(data_AB["sources"]))
+            # Combine sources that contributed nonzero values for any type
+            sources_AB = sorted(
+                data_AB["gap_sources"] | data_AB["chem_sources"] | data_AB["func_sources"]
+            )
 
-            # Only add row if there's *any* evidence for this directed connection
-            if sources_AB or not np.isnan(func_AB):
-                 output_rows.append({
-                     "neuron1": label1,
-                     "neuron2": label2,
-                     "mean_gap_weight": mean_gap, # Symmetric mean
-                     "mean_chem_weight": mean_chem_AB, # Directed mean A->B
-                     "functional_weight": func_AB, # Directed A->B
-                     "data_sources": sources_AB
-                 })
+            # Always add row, even if all values are null/empty
+            output_rows.append({
+                "neuron1": label1,
+                "neuron2": label2,
+                "mean_gap_weight": mean_gap, # Symmetric mean
+                "mean_chem_weight": mean_chem_AB, # Directed mean A->B
+                "functional_weight": func_AB, # Directed A->B
+                "data_sources": sources_AB
+            })
 
     print(f"Created {len(output_rows)} summary rows.")
     if not output_rows:
