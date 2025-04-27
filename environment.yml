@@ -15,6 +15,7 @@ dependencies:
   - xlrd>=2.0.1
   - openpyxl
   - pyarrow # for parquet file creation
+  - matplotlib # for connectome graph visualization
   - pip
   - pip:
       - torch-geometric
