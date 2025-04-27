@@ -265,7 +265,7 @@ if __name__ == "__main__":
         )
 
         # Save df as CSV
-        output_csv_path = os.path.join(PROCESSED_DATA_DIR, "aggregated_connectome.csv")
+        output_csv_path = os.path.join(PROJECT_ROOT, "datasets", "aggregated_connectome.csv")
         try:
             summary_df.to_csv(output_csv_path, index=False)
             print(f"\nSummary DataFrame saved to: {output_csv_path}")
