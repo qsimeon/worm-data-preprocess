@@ -148,7 +148,8 @@ def analyze_all_connectomes(data_dir: str) -> pd.DataFrame:
                             collected_data[pair_key]["gap_vals_A_to_B"].append(gap_w)
                             collected_data[pair_key]["gap_sources"].add(dataset_name)
                         if chem_w != 0:
-                            collected_data[pair_key]["chem_vals_A_to_B"].append(chem_w)
+                            # Store both value and dataset name for chem weights
+                            collected_data[pair_key]["chem_vals_A_to_B"].append((chem_w, dataset_name))
                             collected_data[pair_key]["chem_sources"].add(dataset_name)
 
                         # Special handling for functional connectivity dataset
@@ -185,7 +186,17 @@ def analyze_all_connectomes(data_dir: str) -> pd.DataFrame:
             unique_gap_values = list(set(all_gap_values))
 
             mean_gap = np.mean(unique_gap_values) if unique_gap_values else np.nan
-            mean_chem_AB = np.mean(data_AB["chem_vals_A_to_B"]) if data_AB["chem_vals_A_to_B"] else np.nan
+
+            # Only use chemical weights from non-funconn datasets
+            chem_weights_non_funconn = [
+                w for (w, ds) in data_AB["chem_vals_A_to_B"] if ds != "funconn"
+            ]
+            chem_sources = data_AB["chem_sources"]
+            if not chem_weights_non_funconn:
+                mean_chem_AB = np.nan
+            else:
+                mean_chem_AB = np.mean(chem_weights_non_funconn)
+
             func_AB = data_AB["func_val_A_to_B"]
             sources_AB = sorted(
                 data_AB["gap_sources"] | data_AB["chem_sources"] | data_AB["func_sources"]
@@ -195,7 +206,8 @@ def analyze_all_connectomes(data_dir: str) -> pd.DataFrame:
             def get_meta(label):
                 if label in df_neuron_meta.index:
                     row = df_neuron_meta.loc[label]
-                    pos = (row["x"], row["y"], row["z"])
+                    # Convert to regular floats for CSV output
+                    pos = (float(row["x"]), float(row["y"]), float(row["z"]))
                     typ = row["type"]
                     return pos, typ
                 else:
@@ -211,7 +223,7 @@ def analyze_all_connectomes(data_dir: str) -> pd.DataFrame:
                 "from_type": from_type,
                 "to_type": to_type,
                 "mean_gap_weight": mean_gap, # Symmetric mean
-                "mean_chem_weight": mean_chem_AB, # Directed mean A->B
+                "mean_chem_weight": mean_chem_AB, # Directed mean A->B, excluding funconn
                 "functional_weight": func_AB, # Directed A->B
                 "data_sources": sources_AB
             })
@@ -301,7 +313,7 @@ if __name__ == "__main__":
             trimmed_df.to_csv(output_csv_path, index=False)
             print(f"\nTrimmed DataFrame saved to: {output_csv_path}")
         else:
-            output_csv_path = os.path.join(PROJECT_ROOT, "datasets", "aggregated_connectome.csv")
+            output_csv_path = os.path.join(PROJECT_ROOT, "datasets", "aggregated_connectome_full.csv")
             summary_df.to_csv(output_csv_path, index=False)
             print(f"\nSummary DataFrame saved to: {output_csv_path}")
     else:
