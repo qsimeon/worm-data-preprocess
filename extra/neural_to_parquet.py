@@ -4,13 +4,16 @@ uploaded and viewed on HuggingFace.
 """
 
 import os
-import scipy.stats
 import numpy as np
 import pandas as pd
 import pickle
 
 from tqdm import tqdm 
 # import matplotlib.pyplot as plt
+
+# for imports to work even in /extra directory
+import sys
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
 from _main_utils import (
     init_random_seeds,
