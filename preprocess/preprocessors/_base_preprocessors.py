@@ -468,7 +468,7 @@ class ConnectomeBasePreprocessor:
         # Filter the neuron master sheet to include only neurons present in the labels
         df_master = self.neuron_master_sheet[
             self.neuron_master_sheet["label"].isin(self.neuron_labels)
-        ].copy()  # Use .copy() to avoid SettingWithCopyWarning if modifying df_master
+        ].copy()
 
         # Create a position dictionary (pos) for neurons using their x, y, z coordinates
         # Use self.neuron_to_idx for mapping labels to the graph indices
