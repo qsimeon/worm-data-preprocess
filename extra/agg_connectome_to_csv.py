@@ -8,7 +8,10 @@ It extracts connection information from each tensor file, calculates statistics
 for gap junctions, chemical synapses, and functional weights, and merges them.
 
 The output CSV contains the following columns:
-- neuron1, neuron2: The pair of neurons (directed from neuron1 to neuron2)
+- from_neuron, to_neuron: The pair of neurons (directed from from_neuron to to_neuron)
+- from_pos_x, from_pos_y, from_pos_z: Position coordinates of from_neuron
+- to_pos_x, to_pos_y, to_pos_z: Position coordinates of to_neuron
+- from_type, to_type: Type of from_neuron and to_neuron
 - mean_gap_weight: Average gap junction weight (symmetric)
 - mean_chem_weight: Average chemical synapse weight (directed)
 - functional_weight: Functional connectivity weight from the funconn dataset
@@ -30,6 +33,12 @@ PROJECT_ROOT = os.path.abspath(os.path.join(SCRIPT_DIR, ".."))
 if PROJECT_ROOT not in sys.path:
     sys.path.insert(0, PROJECT_ROOT)
 from preprocess._pkg import NEURON_LABELS
+
+# --- Load neuron metadata ---
+# Load neuron_master_sheet.csv for position/type lookup
+NEURON_META_PATH = os.path.join(PROJECT_ROOT, "data", "raw", "neuron_master_sheet.csv")
+df_neuron_meta = pd.read_csv(NEURON_META_PATH)
+df_neuron_meta = df_neuron_meta.set_index("label")
 
 PROCESSED_DATA_DIR = os.path.join(PROJECT_ROOT, "data/processed/connectome")
 
@@ -59,16 +68,21 @@ def analyze_all_connectomes(data_dir: str) -> pd.DataFrame:
 
     Returns:
         A Pandas DataFrame summarizing connections across datasets.
-        Columns: neuron1, neuron2, data_sources, mean_gap_weight,
-                 mean_chem_weight, functional_weight.
+        Columns: from_neuron, to_neuron, from_pos_x, from_pos_y, from_pos_z,
+                 to_pos_x, to_pos_y, to_pos_z, from_type, to_type, data_sources,
+                 mean_gap_weight, mean_chem_weight, functional_weight.
     """
     pt_files = glob.glob(os.path.join(data_dir, "graph_tensors_*.pt"))
     if not pt_files:
         print(f"Warning: No 'graph_tensors_*.pt' files found in {data_dir}")
         return pd.DataFrame(
             columns=[
-                "neuron1",
-                "neuron2",
+                "from_neuron",
+                "to_neuron",
+                "from_pos",
+                "to_pos",
+                "from_type",
+                "to_type",
                 "mean_gap_weight",
                 "mean_chem_weight",
                 "functional_weight",
@@ -76,7 +90,7 @@ def analyze_all_connectomes(data_dir: str) -> pd.DataFrame:
             ]
         )
 
-    # Store collected data per DIRECTED pair (neuron1_label, neuron2_label)
+    # Store collected data per DIRECTED pair (from_neuron_label, to_neuron_label)
     collected_data = defaultdict(lambda: {
         "gap_vals_A_to_B": [],
         "gap_vals_B_to_A": [],
@@ -118,7 +132,8 @@ def analyze_all_connectomes(data_dir: str) -> pd.DataFrame:
                     # Get labels for the current pair
                     label1 = IDX_TO_LABEL.get(idx1)
                     label2 = IDX_TO_LABEL.get(idx2)
-                    if not label1 or not label2: continue # Should not happen
+                    if not label1 or not label2:
+                        continue  # Should not happen
 
                     pair_key = (label1, label2) # Directed key
 
@@ -156,7 +171,6 @@ def analyze_all_connectomes(data_dir: str) -> pd.DataFrame:
 
     # --- Step 2: Aggregate collected data into final DataFrame rows ---
     output_rows = []
-    processed_pairs = set() # Keep track to avoid duplicating symmetric gap info logic
 
     print("\nAggregating results...")
     # Iterate through all N*N pairs again to ensure all are included
@@ -164,31 +178,38 @@ def analyze_all_connectomes(data_dir: str) -> pd.DataFrame:
         for label2 in NEURON_LABELS:
             # include self-loops
             pair_key_AB = (label1, label2)
-            pair_key_BA = (label2, label1)
             data_AB = collected_data[pair_key_AB]
-            data_BA = collected_data[pair_key_BA] # Get data collected for the reverse direction
             # Combine all gap values related to the pair {A, B} from both directions
             all_gap_values = data_AB["gap_vals_A_to_B"] + data_AB["gap_vals_B_to_A"]
             # We might have duplicates if a dataset correctly listed symmetric values, use unique values
             unique_gap_values = list(set(all_gap_values))
 
             mean_gap = np.mean(unique_gap_values) if unique_gap_values else np.nan
-
-            # Calculate mean directed chemical weight A->B
             mean_chem_AB = np.mean(data_AB["chem_vals_A_to_B"]) if data_AB["chem_vals_A_to_B"] else np.nan
-
-            # Get directed functional weight A->B
             func_AB = data_AB["func_val_A_to_B"]
-
-            # Combine sources that contributed nonzero values for any type
             sources_AB = sorted(
                 data_AB["gap_sources"] | data_AB["chem_sources"] | data_AB["func_sources"]
             )
 
-            # Always add row, even if all values are null/empty
+            # --- Lookup metadata for both neurons ---
+            def get_meta(label):
+                if label in df_neuron_meta.index:
+                    row = df_neuron_meta.loc[label]
+                    pos = (row["x"], row["y"], row["z"])
+                    typ = row["type"]
+                    return pos, typ
+                else:
+                    return (np.nan, np.nan, np.nan), None
+            from_pos, from_type = get_meta(label1)
+            to_pos, to_type = get_meta(label2)
+
             output_rows.append({
-                "neuron1": label1,
-                "neuron2": label2,
+                "from_neuron": label1,
+                "to_neuron": label2,
+                "from_pos": from_pos,
+                "to_pos": to_pos,
+                "from_type": from_type,
+                "to_type": to_type,
                 "mean_gap_weight": mean_gap, # Symmetric mean
                 "mean_chem_weight": mean_chem_AB, # Directed mean A->B
                 "functional_weight": func_AB, # Directed A->B
@@ -199,12 +220,10 @@ def analyze_all_connectomes(data_dir: str) -> pd.DataFrame:
     if not output_rows:
         return pd.DataFrame(
             columns=[
-                "neuron1",
-                "neuron2",
-                "mean_gap_weight",
-                "mean_chem_weight",
-                "functional_weight",
-                "data_sources",
+                "from_neuron", "to_neuron",
+                "from_pos", "to_pos",
+                "from_type", "to_type",
+                "mean_gap_weight", "mean_chem_weight", "functional_weight", "data_sources"
             ]
         )
 
@@ -213,6 +232,12 @@ def analyze_all_connectomes(data_dir: str) -> pd.DataFrame:
 
 if __name__ == "__main__":
     print("Starting connectome analysis...")
+    # Prompt user for excluding null rows
+    while True:
+        user_input = input("Exclude rows where all weights are null (gap, chem, functional)? [y/N]: ").strip().lower()
+        if user_input in ('y', 'n', ''):
+            break
+    exclude_null = (user_input == 'y')
     summary_df = analyze_all_connectomes(PROCESSED_DATA_DIR)
 
     if not summary_df.empty:
@@ -227,7 +252,7 @@ if __name__ == "__main__":
         gap_df = summary_df.dropna(subset=["mean_gap_weight"])
         # Create a canonical representation for each pair (ignore direction for counting pairs)
         gap_df["pair"] = gap_df.apply(
-            lambda row: frozenset({row["neuron1"], row["neuron2"]}), axis=1
+            lambda row: frozenset({row["from_neuron"], row["to_neuron"]}), axis=1
         )
         num_gap_pairs = gap_df["pair"].nunique()
         # Calculate average gap weight over unique pairs to avoid double counting
@@ -264,12 +289,20 @@ if __name__ == "__main__":
             f"Average Functional Relationship Weight (Directed): {avg_func_weight:.3f}"
         )
 
-        # Save df as CSV
-        output_csv_path = os.path.join(PROJECT_ROOT, "datasets", "aggregated_connectome.csv")
-        try:
+        if exclude_null:
+            # Exclude rows where all weights are null
+            mask = ~(
+                summary_df['mean_gap_weight'].isnull() &
+                summary_df['mean_chem_weight'].isnull() &
+                summary_df['functional_weight'].isnull()
+            )
+            trimmed_df = summary_df[mask].copy()
+            output_csv_path = os.path.join(PROJECT_ROOT, "datasets", "aggregated_connectome_not_null.csv")
+            trimmed_df.to_csv(output_csv_path, index=False)
+            print(f"\nTrimmed DataFrame saved to: {output_csv_path}")
+        else:
+            output_csv_path = os.path.join(PROJECT_ROOT, "datasets", "aggregated_connectome.csv")
             summary_df.to_csv(output_csv_path, index=False)
             print(f"\nSummary DataFrame saved to: {output_csv_path}")
-        except Exception as e:
-            print(f"\nError saving summary DataFrame to CSV: {e}")
     else:
         print("\nAnalysis finished, but no data was aggregated.")
