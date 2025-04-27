@@ -1,6 +1,9 @@
 # Module Information
 
-This repository contains the functions used to preprocess the open-source calcium imaging data for neural activity analysis.
+This repository contains the functions used to preprocess the open-source
+calcium imaging data for neural activity analysis and the connectome files from
+published datasets.
+
 
 ## File Structure
 
@@ -152,3 +155,9 @@ Each `.pt` file contains a dictionary called `graph_tensors` with the following 
 - **Edge attributes:** If an edge has only one type (gap or chemical), the other value is zero.
 - **All tensors are aligned by node or edge index.**
 </details>
+
+### Connectome Data Processing
+  1. Loading and parsing *C. elegans* connectome datasets.
+  1. Construction of adjacency matrices for chemical and electrical synapses.
+  1. Mapping connectome nodes to neural activity data.
+  1. Tools for subsetting, filtering, and analyzing connectivity.
