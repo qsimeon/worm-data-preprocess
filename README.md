@@ -33,47 +33,70 @@ connectome data to be used for downstream analysis and machine learning tasks.
 
 1. To prepare for a preprocessing run, update your configuration in `preprocess/config.py`.
 
-2. To download and preprocess the neural data, run:
+2. To download and preprocess the **neural data**, run:
 
-```bash
-python preprocess.py (--verbose)
-```
+   ```bash
+   python preprocess.py -n (--verbose)
+   ```
 
-_Downloading the neural data should take approximately 10 minutes, depending on your download speed._
+   _Downloading the neural data should take approximately 10 minutes, depending on your download speed._
 
-_Preprocessing all the data takes approximately 11 mins to run on an M2 MacBook Pro, but will be highly dependent on your on your hardware. We recommend enabling multithreading in the `config.py` file to make this as fast as possible._
+   _Preprocessing all the neural data takes approximately 11 minutes to run on an M2 MacBook Pro, but will be highly dependent on your hardware. We recommend enabling multithreading in the `config.py` file to make this as fast as possible._
 
-3. Once the data has been preprocessed, you will find the processed data in
-   `data/processed/`
+   The processed neural data will be found in `data/processed/neural/`.
+
+3. To download and preprocess the **connectome data**, run:
+
+   ```bash
+   python preprocess.py -c (--verbose)
+   ```
+
+   _Downloading and preprocessing the connectome data is typically much faster than the neural data._
+
+   The processed connectome data will be found in `data/processed/connectome/`.
 
 4. Once you have selected the files you need, you may clear all processed and
    downloaded files using:
 
-```bash
-python cleanup.py (--force)
-```
+   ```bash
+   python cleanup.py (--force)
+   ```
 
-_This clears around 40gb of files._
+   _This clears around 40GB of files._
 
 ---
 
-## (optional) Step 3: Generate Parqet File
+## (optional) Step 3: Generate Aggregate Files
 
-Optionally, we have included the ability to generate a parquet file for
-clear of viewing the data. This is what is used to create the data file
-available on the associated [HuggingFace](https://huggingface.co/datasets/qsimeon/celegans_neural_data).
+Optionally, you can generate aggregate files for easier data analysis and sharing.
+
+### Neural Data: Generate Parquet File
+
+This creates a Parquet file for clear viewing of the neural data, as used on the associated [HuggingFace](https://huggingface.co/datasets/qsimeon/celegans_neural_data).
 
 1. Run the script:
 
-```bash
-python neural_to_parqet.py
-```
+   ```bash
+   python extra/neural_to_parquet.py
+   ```
 
-2. Access the generated parqet file at `data/datasets/preprocessed_worm_data_short.parqet`
+2. Access the generated Parquet file at `data/datasets/preprocessed_worm_data_{NAME}.parquet`
+
+### Connectome Data: Generate Master CSV
+
+This creates an aggregate CSV file for the connectome data, as used on the associated [HuggingFace](https://huggingface.co/datasets/qsimeon/celegans_connectome_data).
+
+1. Run the script:
+
+   ```bash
+   python extra/agg_connectome_to_csv.py
+   ```
+
+2. Access the generated CSV file at `data/datasets/agg_connectome_master.csv`
 
 ---
 
-## Datasets
+## Neural Activity Datasets
 
 The following 12 datasets are included by default:
 
@@ -97,7 +120,7 @@ See how this table was generated from the final parquet
 
 ---
 
-## Preliminary Data Analysis
+## Preliminary Data Analysis on Neural Activity
 
 **Data Analysis Notebook**
 
