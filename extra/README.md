@@ -12,11 +12,5 @@ Generates the parquet file for neural activity data available on the [HuggingFac
 
 ---
 
-### `connectome_analysis.py`
-Contains utility scripts for verifying connectome data integrity and analyzing connectivity patterns.
-
-### `gapjunctiontesting.ipynb`
-Jupyter notebook with specialized scripts for verifying symmetry in gap junction weights, ensuring biological accuracy.
-
-### `visualize_connectome.py`
-Contains additional code for connectome data visualization and verification, supporting comprehensive connectome analysis.
+### `notebooks/visualize_connectome.py`
+Contains additional code for connectome data visualization and verification; helpful for iteration.
