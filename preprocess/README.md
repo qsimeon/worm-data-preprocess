@@ -5,12 +5,17 @@ This repository contains the functions used to preprocess the open-source calciu
 ## File Structure
 
 The submodule consists of the following files:
-- `_config.py`: Contains configuration settings and parameters for preprocessing.
+- `_config.py`: Contains configuration settings and parameters for preprocessing
+  (both neural activity and connectome)
 - `_main.py`: Contains the overarching logic for preprocessing the data as specified in the configuration file.
 - `_utils.py`: Contains a number of main utility functions for beginning preprocessing.
 - `_pkg.py`: Contains the necessary imports for the submodule.
+
+#### Preprocessor Code
+
 - `preprocess/_base_preprocessors.py`: Contains the base preprocessing classes from which all dataset-specific preprocessors inherit their methods.
-- `preprocess/_neural.py`: Contains all the neural-specific preprocessors (unconcerned with connectome data).
+- `preprocess/_neural.py`: Contains all the neural activity-specific preprocessors.
+- `preprocess/_connectome.py`: Contains all the connectome-specific preprocessors
 - `preprocess/_helpers.py`: Contains helper functions used across different preprocessing classes.
 
 
@@ -19,7 +24,9 @@ The submodule consists of the following files:
 Please refer to the `README.md` in the root directory for information on how to
 process the data.
 
-### Dataset Structure
+## Neural Activity Data
+
+### Neural Activity Dataset Structure
 
 Each dataset is stored in a Python dictionary of the following form:
 ```python
@@ -74,7 +81,7 @@ Each worm (`worm0`, `worm1`, ..., `wormN`) is a dictionary containing:
 
 </details>
 
-## Preprocessing
+### Neural Activity Data Preprocessing
 
 The datasets have been preprocessed using Python scripts available in this repository. The preprocessing steps include:
 
@@ -88,3 +95,60 @@ The datasets have been preprocessed using Python scripts available in this repos
 1. Saving the preprocessed data into a standardized format.
 
 
+## Connectome Data
+
+### Connectome Dataset Structure
+
+<details>
+<summary>Dataset-specific .pt file structure</summary>
+
+Each `.pt` file contains a dictionary called `graph_tensors` with the following keys:
+
+- **edge_index** (`torch.Tensor`):  
+    Shape `[2, num_edges]`. Each column represents a directed edge as `[source_node, target_node]`.  
+    *Edge-level attribute.*
+
+- **edge_attr** (`torch.Tensor`):  
+    Shape `[num_edges, 2]`. Each row contains `[gap_junction_weight, chemical_synapse_weight]` for the corresponding edge in `edge_index`.  
+    *Edge-level attribute.*
+
+- **x** (`torch.Tensor`):  
+    Shape `[num_nodes, 1024]`. Placeholder for node features (currently empty).  
+    *Node-level attribute.*
+
+- **y** (`torch.Tensor`):  
+    Shape `[num_nodes]`. Placeholder for encoded neuron type for each node, as integer labels.  
+    *Node-level attribute.*
+
+- **pos** (`torch.Tensor`):  
+    Shape `[num_nodes, 3]`. 3D spatial coordinates `[x, y, z]` for each neuron.  
+    *Node-level attribute.*
+
+- **node_type** (`dict`):  
+    Maps node index (int) to neuron type (int code, matching `y`).  
+    *Node-level metadata (mapping, not stored per node in the Data object).*
+
+- **node_label** (`dict`):  
+    Maps node index (int) to neuron label (str, e.g., `'ADAL'`).  
+    *Node-level metadata.*
+
+- **node_class** (`dict`):  
+    Maps node index (int) to neuron class (str, e.g., `'ADA'`).  
+    *Node-level metadata.*
+
+- **node_index** (`torch.Tensor`):  
+    Shape `[num_nodes]`. Tensor of node indices (0 to `num_nodes-1`).  
+    *Node-level attribute.*
+
+- **num_classes** (`int`):  
+    Number of unique neuron classes/types in the graph.  
+    *Graph-level attribute.*
+
+### Notes
+
+- **Node and edge attributes used for computation** (e.g., `x`, `y`, `pos`, `edge_index`, `edge_attr`) are stored as tensors and indexed by node or edge.
+- **Dictionaries** (`node_type`, `node_label`, `node_class`) are included for convenience and map node indices to metadata, but are not required by PyTorch Geometric for computation.
+- **Edge directionality:** Both directions are included for symmetric connections (gap junctions).
+- **Edge attributes:** If an edge has only one type (gap or chemical), the other value is zero.
+- **All tensors are aligned by node or edge index.**
+</details>
