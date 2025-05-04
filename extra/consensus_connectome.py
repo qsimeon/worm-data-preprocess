@@ -309,11 +309,11 @@ if __name__ == "__main__":
                 summary_df['functional_weight'].isnull()
             )
             trimmed_df = summary_df[mask].copy()
-            output_csv_path = os.path.join(PROJECT_ROOT, "datasets", "aggregated_connectome_not_null.csv")
+            output_csv_path = os.path.join(PROJECT_ROOT, "datasets", "consensus_connectome_not_null.csv")
             trimmed_df.to_csv(output_csv_path, index=False)
             print(f"\nTrimmed DataFrame saved to: {output_csv_path}")
         else:
-            output_csv_path = os.path.join(PROJECT_ROOT, "datasets", "aggregated_connectome_full.csv")
+            output_csv_path = os.path.join(PROJECT_ROOT, "datasets", "consensus_connectome_full.csv")
             summary_df.to_csv(output_csv_path, index=False)
             print(f"\nSummary DataFrame saved to: {output_csv_path}")
     else:

@@ -4,11 +4,11 @@ This folder contains all additional scripts related to the C. elegans neural ana
 
 ## Script Descriptions
 
-### `agg_connectome_to_csv.py`
-Generates CSV files for aggregate connectome data available on the [HuggingFace repository](https://huggingface.co/datasets/hectorastrm/celegans-connectome).
+### `consensus_connectome.py`
+Generates CSV files for consensus connectome data available on the [HuggingFace repository](https://huggingface.co/datasets/qsimeon/celegans_connectome_data).
 
 ### `neural_to_parquet.py`
-Generates the parquet file for neural activity data available on the [HuggingFace repository](https://huggingface.co/datasets/hectorastrm/celegans-neural-activity). 
+Generates the parquet file for neural activity data available on the [HuggingFace repository](https://huggingface.co/datasets/qsimeon/celegans_neural_data). 
 
 ---
 

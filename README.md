@@ -89,10 +89,10 @@ This creates an aggregate CSV file for the connectome data, as used on the assoc
 1. Run the script:
 
    ```bash
-   python extra/agg_connectome_to_csv.py
+   python extra/consensus_connectome.py
    ```
 
-2. Access the generated CSV file at `data/datasets/agg_connectome_master.csv`
+2. Access the generated CSV file at `data/datasets/consensus_connectome.csv`
 
 ---
 
