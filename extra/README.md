@@ -12,5 +12,10 @@ Generates the parquet file for neural activity data available on the [HuggingFac
 
 ---
 
-### `notebooks/visualize_connectome.py`
+### `visuals/visualize_connectome.py`
 Contains additional code for connectome data visualization and verification; helpful for iteration.
+
+### `visuals/plot_amphid_consensus.py`
+Visualizes the consensus connectome for the 22 amphid chemosensory neurons using
+the updated CSV output. Produces a directed graph image showing aggregated edge
+weights. Used as Appendix Fig. 1 in preprint.
