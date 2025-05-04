@@ -40,8 +40,10 @@ class DefaultPreprocessor(ConnectomeBasePreprocessor):
         Args:
             save_as (str, optional): Filename for saved tensors. Default "graph_tensors_default.pt".
         """
-        # Override DefaultProprecessor with Witvliet2020Preprocessor7, a more up-to-date connectome of C. elegans.
-        # return Witvliet2020Preprocessor7().preprocess(save_as="graph_tensors.pt") # Note: Instantiation needed
+        # Override DefaultProprecessor with Witvliet2020Preprocessor7, a more
+        # up-to-date connectome of C. elegans.
+        print("DefaultPreprocessor is deprecated, using Witvliet2020Preprocessor7 instead")
+        return Witvliet2020Preprocessor7().preprocess("graph_tensors.pt")
 
         neurons_all = set(self.neuron_labels)
         sep = r"[\t,]"
