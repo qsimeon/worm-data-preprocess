@@ -156,6 +156,8 @@ Each `.pt` file contains a dictionary called `graph_tensors` with the following 
 - **All tensors are aligned by node or edge index.**
 </details>
 
+Read about the consensus_connectome structure on the preprint.
+
 ### Connectome Data Processing
   1. Loading and parsing *C. elegans* connectome datasets.
   1. Construction of adjacency matrices for chemical and electrical synapses.

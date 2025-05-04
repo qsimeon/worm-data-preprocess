@@ -58,6 +58,9 @@ def get_dataset_name(filepath: str) -> str:
     name = base.replace("graph_tensors_", "").replace(".pt", "")
     return name
 
+# tunable hyperparameter for std‐combination
+LAMBDA = 0.9
+
 def analyze_all_connectomes(data_dir: str) -> pd.DataFrame:
     """
     Loads all processed .pt connectome files, aggregates connection data,
@@ -70,7 +73,7 @@ def analyze_all_connectomes(data_dir: str) -> pd.DataFrame:
         A Pandas DataFrame summarizing connections across datasets.
         Columns: from_neuron, to_neuron, from_pos_x, from_pos_y, from_pos_z,
                  to_pos_x, to_pos_y, to_pos_z, from_type, to_type, data_sources,
-                 mean_gap_weight, mean_chem_weight, functional_weight.
+                 mean_gap_weight, mean_chem_weight, uncertainty, functional_weight.
     """
     pt_files = glob.glob(os.path.join(data_dir, "graph_tensors_*.pt"))
     if not pt_files:
@@ -85,6 +88,7 @@ def analyze_all_connectomes(data_dir: str) -> pd.DataFrame:
                 "to_type",
                 "mean_gap_weight",
                 "mean_chem_weight",
+                "uncertainty",
                 "functional_weight",
                 "data_sources",
             ]
@@ -202,6 +206,13 @@ def analyze_all_connectomes(data_dir: str) -> pd.DataFrame:
                 data_AB["gap_sources"] | data_AB["chem_sources"] | data_AB["func_sources"]
             )
 
+            # compute stds
+            std_gap = np.std(unique_gap_values) if unique_gap_values else np.nan
+            chem_vals = [w for (w, ds) in data_AB["chem_vals_A_to_B"] if ds != "funconn"]
+            std_chem = np.std(chem_vals) if chem_vals else np.nan
+            # combined consensus std
+            uncertainty = LAMBDA * std_chem + (1 - LAMBDA) * std_gap
+
             # --- Lookup metadata for both neurons ---
             def get_meta(label):
                 if label in df_neuron_meta.index:
@@ -224,18 +235,26 @@ def analyze_all_connectomes(data_dir: str) -> pd.DataFrame:
                 "to_type": to_type,
                 "mean_gap_weight": mean_gap, # Symmetric mean
                 "mean_chem_weight": mean_chem_AB, # Directed mean A->B, excluding funconn
-                "functional_weight": func_AB, # Directed A->B
-                "data_sources": sources_AB
+                "uncertainty": uncertainty,
+                "functional_weight": func_AB, # Directed A->B,
+                "data_sources": sources_AB,
             })
 
     print(f"Created {len(output_rows)} summary rows.")
     if not output_rows:
         return pd.DataFrame(
             columns=[
-                "from_neuron", "to_neuron",
-                "from_pos", "to_pos",
-                "from_type", "to_type",
-                "mean_gap_weight", "mean_chem_weight", "functional_weight", "data_sources"
+                "from_neuron",
+                "to_neuron",
+                "from_pos",
+                "to_pos",
+                "from_type",
+                "to_type",
+                "mean_gap_weight",
+                "mean_chem_weight",
+                "uncertainty",
+                "functional_weight",
+                "data_sources",
             ]
         )
 
@@ -244,12 +263,13 @@ def analyze_all_connectomes(data_dir: str) -> pd.DataFrame:
 
 if __name__ == "__main__":
     print("Starting connectome analysis...")
-    # Prompt user for excluding null rows
-    while True:
-        user_input = input("Exclude rows where all weights are null (gap, chem, functional)? [y/N]: ").strip().lower()
-        if user_input in ('y', 'n', ''):
-            break
-    exclude_null = (user_input == 'y')
+    
+    # Ensure the datasets directory exists
+    datasets_dir = os.path.join(PROJECT_ROOT, "datasets")
+    if not os.path.exists(datasets_dir):
+        os.makedirs(datasets_dir)
+        print(f"Created datasets directory: {datasets_dir}")
+    
     summary_df = analyze_all_connectomes(PROCESSED_DATA_DIR)
 
     if not summary_df.empty:
@@ -301,20 +321,53 @@ if __name__ == "__main__":
             f"Average Functional Relationship Weight (Directed): {avg_func_weight:.3f}"
         )
 
-        if exclude_null:
-            # Exclude rows where all weights are null
-            mask = ~(
-                summary_df['mean_gap_weight'].isnull() &
-                summary_df['mean_chem_weight'].isnull() &
-                summary_df['functional_weight'].isnull()
+        # Function to generate output files with different configurations
+        def generate_output_file(include_all_rows, include_functional):
+            # Create a copy of the DataFrame to avoid modifying the original
+            output_df = summary_df.copy()
+            
+            # Option B: Functional Weight Inclusion
+            func_tag = "withfunc" if include_functional else "nofunc"
+            if not include_functional:
+                # Remove the functional_weight column
+                output_df = output_df.drop(columns=["functional_weight"])
+            
+            # Option A: Row Inclusion Criteria
+            row_tag = "full" if include_all_rows else "trimmed"
+            if not include_all_rows:
+                # For the trimmed version, exclude rows where all REMAINING weights are null
+                # This means we only consider functional weights if they're included
+                if include_functional:
+                    # Consider all three weight types
+                    mask = ~(
+                        output_df['mean_gap_weight'].isnull() &
+                        output_df['mean_chem_weight'].isnull() &
+                        output_df['functional_weight'].isnull()
+                    )
+                else:
+                    # Only consider gap and chemical weights
+                    mask = ~(
+                        output_df['mean_gap_weight'].isnull() &
+                        output_df['mean_chem_weight'].isnull()
+                    )
+                output_df = output_df[mask]
+            
+            # Set the output path according to the naming convention
+            output_csv_path = os.path.join(
+                PROJECT_ROOT, 
+                "datasets", 
+                f"consensus_connectome_{row_tag}_{func_tag}.csv"
             )
-            trimmed_df = summary_df[mask].copy()
-            output_csv_path = os.path.join(PROJECT_ROOT, "datasets", "consensus_connectome_not_null.csv")
-            trimmed_df.to_csv(output_csv_path, index=False)
-            print(f"\nTrimmed DataFrame saved to: {output_csv_path}")
-        else:
-            output_csv_path = os.path.join(PROJECT_ROOT, "datasets", "consensus_connectome_full.csv")
-            summary_df.to_csv(output_csv_path, index=False)
-            print(f"\nSummary DataFrame saved to: {output_csv_path}")
+            
+            # Save the output file
+            output_df.to_csv(output_csv_path, index=False)
+            print(f"Generated: {output_csv_path}")
+        
+        # Generate all four file combinations
+        print("\nGenerating output files...")
+        generate_output_file(include_all_rows=True, include_functional=True)    # full_withfunc
+        generate_output_file(include_all_rows=True, include_functional=False)   # full_nofunc
+        generate_output_file(include_all_rows=False, include_functional=True)   # trimmed_withfunc
+        generate_output_file(include_all_rows=False, include_functional=False)  # trimmed_nofunc
     else:
         print("\nAnalysis finished, but no data was aggregated.")
