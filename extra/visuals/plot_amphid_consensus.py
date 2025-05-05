@@ -1,9 +1,9 @@
 
 """
 Generates a directed graph visualization of the 22 amphid chemosensory neurons
-using the updated consensus_connectome_full_nofunc.csv file.
+using the updated consensus_connectome_full_nofunc.csv file. 
 
-Place script in root directory for it to properly find dataset.
+Used as appendix figure 1 in paper.
 """
 
 import pandas as pd
