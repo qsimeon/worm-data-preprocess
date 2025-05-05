@@ -92,7 +92,7 @@ This creates an aggregate CSV file for the connectome data, as used on the assoc
    python extra/consensus_connectome.py
    ```
 
-2. Access the generated CSV file at `data/datasets/consensus_connectome.csv`
+2. Access the generated CSV file at `data/datasets/consensus_connectome_[tags].csv`
 
 ---
 
