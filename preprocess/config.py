@@ -21,7 +21,7 @@ PREPROCESS_CONFIG = {
         "Venkatachalam2024",  # This is unpublished data. Downloaded from chemosensory-data.worm.world/.
     ][:],
     # Dataset selection ('all' or specific dataset names)
-    "source_dataset": "Kato2015",
+    "source_dataset": "all",
     ## PREPROCESSED DATA (for training models)
     # URL to download pre-processed datasets
     "presaved_url": "https://www.dropbox.com/scl/fi/baikxamldjyrf5maephk3/presaved_datasets.zip?rlkey=4qrso6forjpvfdbm9mll3ndxf&dl=1",
