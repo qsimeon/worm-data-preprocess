@@ -6,6 +6,8 @@ data/raw/
 data/processed/
 datasets/
 
+# Generated visuals
+extra/visuals/*.png
 
 # Mac
 .DS_Store
