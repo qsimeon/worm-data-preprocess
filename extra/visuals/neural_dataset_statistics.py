@@ -74,7 +74,6 @@ dt_df = pd.DataFrame(dt_records)
 avg_dt = dt_df.groupby('source_dataset')['dt_median'].mean()
 
 # Benchmarks for panels E and F
-L = 314  # resampled sequence length
 dt_bench = 0.333  # resampled time step (s)
 
 ## 4. Plotting
