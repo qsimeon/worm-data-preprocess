@@ -334,6 +334,15 @@ class ConnectomeBasePreprocessor:
                 f"Warning: Input edge_attr shape is {edge_attr_in.shape}, expected [num_edges, 2]. Assuming order is [gap, chem]."
             )
             
+        # Print original (non-filler) node and edge counts before graph
+        # completion for Appendix Table 5 vals
+        # nonzero_mask = (edge_attr_in != 0).any(dim=1)
+        # original_edges = edge_index_in[:, nonzero_mask]
+        # num_original_edges = original_edges.shape[1]
+        # original_nodes = torch.unique(original_edges)
+        # num_original_nodes = original_nodes.shape[0]
+        # print(f"Original (non-filler) nodes: {num_original_nodes}, edges: {num_original_edges}")
+
         # --- Validate Input: Check for duplicate edges with conflicting attributes ---
         processed_edges = {}  # Store the first attribute encountered for each edge
         # reverse map for clearer error messages
@@ -554,6 +563,16 @@ class ConnectomeBasePreprocessor:
 
         The graph tensors dictionary includes connectivity (`edge_index`), attributes (`edge_attr`), neuron positions (`pos`), features (`x`), and additional information such as node labels and types.
         """
+        # Compute original (non-bloat) edges and nodes
+        edge_index = graph.edge_index
+        edge_attr = graph.edge_attr
+        nonzero_mask = (edge_attr != 0).any(dim=1)
+        original_edges = edge_index[:, nonzero_mask]
+        num_original_edges = original_edges.shape[1]
+        original_nodes = torch.unique(original_edges)
+        num_original_nodes = original_nodes.shape[0]
+
+        print(f"Saving {save_as}: original_nodes={num_original_nodes}, original_edges={num_original_edges}")
 
         # Collect the graph data and additional attributes in a dictionary
         graph_tensors = {
