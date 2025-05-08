@@ -21,6 +21,61 @@ The submodule consists of the following files:
 - `preprocess/_connectome.py`: Contains all the connectome-specific preprocessors
 - `preprocess/_helpers.py`: Contains helper functions used across different preprocessing classes.
 
+## Configuration Options
+
+The preprocessing pipeline is configured through the `config.py` file. Here are the available configuration options:
+
+### Neural Data Configuration
+- `opensource_neural_url`: URL to download the open source worm behavior dataset
+  -- don't modify
+- `opensource_neural_zipfile`: Local filename for downloaded opensource neural
+  data
+- `EXPERIMENT_DATASETS`: List of C. elegans datasets with custom processors. Available datasets:
+  - Kato2015
+  - Nichols2017
+  - Skora2018
+  - Kaplan2020
+  - Nejatbakhsh2020
+  - Yemini2021
+  - Uzel2022
+  - Dag2023
+  - Leifer2023 (stimulus-response dataset)
+  - Lin2023
+  - Flavell2023
+  - Venkatachalam2024 (unpublished data from chemosensory-data.worm.world)
+- `source_dataset`: Dataset selection ('all' or specific dataset names)
+
+### Connectome Data Configuration
+- `connectome_pub`: Connectome publication to use. Options:
+  - 'all'
+  - 'openworm'
+  - 'chklovskii'
+  - 'randi_2023' (synonym: 'funconn')
+  - 'witvliet_7'
+  - 'witvliet_8'
+  - 'white_1986_whole'
+  - 'white_1986_n2u'
+  - 'white_1986_jsh'
+  - 'white_1986_jse'
+  - 'cook_2019'
+
+### Preprocessing Parameters
+- `resample_dt`: Time interval in seconds for resampling neural activity (default: 0.333)
+- `interpolate`: Interpolation method for missing data points (default: 'linear')
+- `smooth`: Signal smoothing parameters
+  - `method`: Smoothing method ('none', 'gaussian', 'exponential', 'moving')
+    - 'none': Fastest, no smoothing
+    - 'gaussian': Gaussian kernel smoothing
+    - 'exponential': Exponential smoothing
+    - 'moving': Moving average smoothing
+  - `alpha`: Exponential smoothing factor (smaller = smoother, default: 0.5)
+  - `sigma`: Gaussian kernel width (larger = smoother, default: 5)
+  - `window_size`: Moving average window size (larger = smoother, default: 15)
+- `norm_transform`: Type of normalization transformation ('causal' or 'standard')
+
+### Processing Speedups
+- `cleanup`: Whether to delete downloaded data after processing (default: False)
+- `use_multithreading`: Enable multithreading for parallel processing (recommended: True)
 
 ## Usage
 

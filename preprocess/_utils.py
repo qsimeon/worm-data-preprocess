@@ -249,35 +249,6 @@ def pickle_neural_data(
     return None
 
 
-def get_presaved_datasets(url, file):
-    """Download and unzip presaved data patterns.
-
-    This function downloads and extracts presaved data patterns).
-    from the specified URL. The extracted data is saved in the 'data' folder.
-    The zip file is deleted after extraction.
-
-    Args:
-        url (str): The download link to the zip file containing the presaved data splits.
-        file (str): The name of the zip file to be downloaded.
-
-    Returns:
-        None
-
-    Steps:
-        1. Construct the paths for the zip file and the data directory.
-        2. Download the zip file from the specified URL.
-        3. Extract the contents of the zip file to the data directory.
-        4. Delete the zip file after extraction.
-    """
-    presaved_url = url
-    presaved_file = file
-    presave_path = os.path.join(ROOT_DIR, presaved_file)
-    data_path = os.path.join(ROOT_DIR, "data")
-    download_url_with_progress(url=presaved_url, folder=ROOT_DIR, filename=presaved_file)
-    extract_zip(presave_path, folder=data_path, delete_zip=True)
-    return None
-
-
 def preprocess_connectome(raw_files, source_connectome=None):
     """Convert the raw connectome data to a graph tensor.
 
