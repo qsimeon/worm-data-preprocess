@@ -3,6 +3,10 @@
 Repository to manage the data preprocessing of C. elegans neural activity and
 connectome data to be used for downstream analysis and machine learning tasks.
 
+<div align="center">
+<img src="workflow_diagram.png" width="500">
+</div>
+
 # Installation Guide
 
 ## Prerequisites
