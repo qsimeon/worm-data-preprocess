@@ -4,6 +4,7 @@ channels:
   - defaults
 dependencies:
   - python=3.12
+  - ipykernel
   - pytorch
   - numpy
   - pandas
@@ -13,6 +14,8 @@ dependencies:
   - scikit-learn
   - xlrd>=2.0.1
   - openpyxl
+  - pyarrow # for parquet file creation
+  - matplotlib # for connectome graph visualization
   - pip
   - pip:
       - torch-geometric

@@ -4,8 +4,10 @@ which are subclasses of NeuralBasePreprocessor.
 
 Count: 12
 """
-from preprocess._pkg import *
-from preprocess.preprocessors._helpers import *
+from preprocess._pkg import os, json, h5py, math, mat73, zipfile, np, pd, tqdm, IterativeImputer, NWBHDF5IO, loadmat, NEURON_LABELS
+from preprocess.preprocessors._helpers import (
+    reshape_calcium_data,
+)
 from preprocess.preprocessors._base_preprocessors import NeuralBasePreprocessor
 
 
@@ -42,7 +44,7 @@ class Kato2015Preprocessor(NeuralBasePreprocessor):
             **kwargs,
         )
         self.citation = "Kato, S., Kaplan, H. S., Schrödel, T., Skora, S., Lindsay, T. H., Yemini, E., Lockery, S., & Zimmer, M. (2015). Global brain dynamics embed the motor command sequence of Caenorhabditis elegans. Cell, 163(3), 656–669. https://doi.org/10.1016/j.cell.2015.09.034"
-
+        
     def extract_data(self, arr):
         """
         Extracts neuron IDs, calcium traces, and time vector from the loaded data array.
@@ -107,7 +109,6 @@ class Kato2015Preprocessor(NeuralBasePreprocessor):
             preprocessed_data[worm] = reshape_calcium_data(preprocessed_data[worm])
         # Save data
         self.save_data(preprocessed_data)
-        logger.info(f"Finished processing {self.source_dataset}.")
         
 
 class Nichols2017Preprocessor(NeuralBasePreprocessor):
@@ -128,7 +129,8 @@ class Nichols2017Preprocessor(NeuralBasePreprocessor):
         Initialize the Nichols2017Preprocessor with the provided parameters.
 
         Parameters:
-            transform (object): The sklearn transformation to be applied to the data.
+            transform (object): The sklearn transformation to be applied to the
+            data.
             smooth_method (str): The smoothing method to apply to the data.
             interpolate_method (str): The interpolation method to use when resampling the data.
             resample_dt (float): The resampling time interval in seconds.
@@ -211,7 +213,6 @@ class Nichols2017Preprocessor(NeuralBasePreprocessor):
             preprocessed_data[worm] = reshape_calcium_data(preprocessed_data[worm])
         # Save data
         self.save_data(preprocessed_data)
-        logger.info(f"Finished processing {self.source_dataset}.")
 
 
 class Skora2018Preprocessor(NeuralBasePreprocessor):
@@ -232,7 +233,8 @@ class Skora2018Preprocessor(NeuralBasePreprocessor):
         Initialize the Skora2018Preprocessor with the provided parameters.
 
         Parameters:
-            transform (object): The sklearn transformation to be applied to the data.
+            transform (object): The sklearn transformation to be applied to the
+            data.
             smooth_method (str): The smoothing method to apply to the data.
             interpolate_method (str): The interpolation method to use when resampling the data.
             resample_dt (float): The resampling time interval in seconds.
@@ -310,7 +312,6 @@ class Skora2018Preprocessor(NeuralBasePreprocessor):
             preprocessed_data[worm] = reshape_calcium_data(preprocessed_data[worm])
         # Save data
         self.save_data(preprocessed_data)
-        logger.info(f"Finished processing {self.source_dataset}.")
 
 
 class Kaplan2020Preprocessor(NeuralBasePreprocessor):
@@ -332,7 +333,8 @@ class Kaplan2020Preprocessor(NeuralBasePreprocessor):
         Initialize the Kaplan2020Preprocessor with the provided parameters.
 
         Parameters:
-            transform (object): The sklearn transformation to be applied to the data.
+            transform (object): The sklearn transformation to be applied to the
+            data.
             smooth_method (str): The smoothing method to apply to the data.
             interpolate_method (str): The interpolation method to use when resampling the data.
             resample_dt (float): The resampling time interval in seconds.
@@ -359,7 +361,7 @@ class Kaplan2020Preprocessor(NeuralBasePreprocessor):
             dict: The loaded data as a dictionary.
         """
         # Load data with mat73
-        data = mat73.loadmat(os.path.join(self.raw_data_path, self.source_dataset, file_name))
+        data = mat73.loadmat(os.path.join(self.raw_data_path, self.source_dataset, file_name), verbose=False)
         return data
 
     def extract_data(self, arr):
@@ -428,7 +430,6 @@ class Kaplan2020Preprocessor(NeuralBasePreprocessor):
             preprocessed_data[worm] = reshape_calcium_data(preprocessed_data[worm])
         # Save data
         self.save_data(preprocessed_data)
-        logger.info(f"Finished processing {self.source_dataset}.")
 
 
 class Nejatbakhsh2020Preprocessor(NeuralBasePreprocessor):
@@ -449,7 +450,8 @@ class Nejatbakhsh2020Preprocessor(NeuralBasePreprocessor):
         Initialize the Nejatbakhsh2020Preprocessor with the provided parameters.
 
         Parameters:
-            transform (object): The sklearn transformation to be applied to the data.
+            transform (object): The sklearn transformation to be applied to the
+            data.
             smooth_method (str): The smoothing method to apply to the data.
             interpolate_method (str): The interpolation method to use when resampling the data.
             resample_dt (float): The resampling time interval in seconds.
@@ -483,11 +485,27 @@ class Nejatbakhsh2020Preprocessor(NeuralBasePreprocessor):
                 .roi_response_series["SignalCalciumImResponseSeries"]
                 .data
             )
-            # TODO: Impute missing NaN values.
+            # Impute missing NaN values # TODO: test this fix works
+            # NOTE: This is very slow with the default settings!
+            imputer = IterativeImputer(
+                random_state=0, n_nearest_features=10, skip_complete=False
+            )
+            nan_columns = []
+            if np.isnan(traces).any():
+                nan_columns = np.where(np.isnan(traces).all(axis=0))[0]
+                traces = imputer.fit_transform(traces)
+                
+            # shapes before imputution: (960, 180), after impution: (960,177)
+            # removes three cols completely full of NaN values (three neurons)
+            
             neuron_ids = np.array(
                 read_nwbfile.processing["CalciumActivity"].data_interfaces["NeuronIDs"].labels,
                 dtype=np.dtype(str),
             )
+            # Remove the same NaN columns from neuron_ids
+            if len(nan_columns) > 0:
+                neuron_ids = np.delete(neuron_ids, nan_columns)
+                
             # sampling frequency is 4 Hz
             time_vector = np.arange(0, traces.shape[0]).astype(np.dtype(float)) / 4
         # Return the extracted data
@@ -540,7 +558,6 @@ class Nejatbakhsh2020Preprocessor(NeuralBasePreprocessor):
         for worm in preprocessed_data.keys():
             preprocessed_data[worm] = reshape_calcium_data(preprocessed_data[worm])
         self.save_data(preprocessed_data)
-        logger.info(f"Finished processing {self.source_dataset}.")
 
 
 class Yemini2021Preprocessor(NeuralBasePreprocessor):
@@ -562,7 +579,8 @@ class Yemini2021Preprocessor(NeuralBasePreprocessor):
         Initialize the Yemini2021Preprocessor with the provided parameters.
 
         Parameters:
-            transform (object): The sklearn transformation to be applied to the data.
+            transform (object): The sklearn transformation to be applied to the
+            data.
             smooth_method (str): The smoothing method to apply to the data.
             interpolate_method (str): The interpolation method to use when resampling the data.
             resample_dt (float): The resampling time interval in seconds.
@@ -696,11 +714,16 @@ class Yemini2021Preprocessor(NeuralBasePreprocessor):
             # Observed empirically that the first three values of activity equal 0.0s
             activity = activity[4:]
             tvec = tvec[4:]
+            
+            original_shape = activity.shape
             # Impute any remaining NaN values
             # NOTE: This is very slow with the default settings!
             imputer = IterativeImputer(random_state=0, n_nearest_features=10, skip_complete=False)
             if np.isnan(activity).any():
                 activity = imputer.fit_transform(activity)
+            # this does not fire below, unlike in Neja...
+            assert activity.shape == original_shape, "Yemini: imputer changed activity shape"
+            
             # Add activity to list of traces
             traces.append(activity)
             # Add time vector to list of time vectors
@@ -754,7 +777,6 @@ class Yemini2021Preprocessor(NeuralBasePreprocessor):
             preprocessed_data[worm] = reshape_calcium_data(preprocessed_data[worm])
         # Save data
         self.save_data(preprocessed_data)
-        logger.info(f"Finished processing {self.source_dataset}.")
 
 
 class Uzel2022Preprocessor(NeuralBasePreprocessor):
@@ -776,7 +798,8 @@ class Uzel2022Preprocessor(NeuralBasePreprocessor):
         Initialize the Uzel2022Preprocessor with the provided parameters.
 
         Parameters:
-            transform (object): The sklearn transformation to be applied to the data.
+            transform (object): The sklearn transformation to be applied to the
+            data.
             smooth_method (str): The smoothing method to apply to the data.
             interpolate_method (str): The interpolation method to use when resampling the data.
             resample_dt (float): The resampling time interval in seconds.
@@ -803,7 +826,7 @@ class Uzel2022Preprocessor(NeuralBasePreprocessor):
             dict: The loaded data as a dictionary.
         """
         # Load data with mat73
-        return mat73.loadmat(os.path.join(self.raw_data_path, self.source_dataset, file_name))
+        return mat73.loadmat(os.path.join(self.raw_data_path, self.source_dataset, file_name), verbose=False)
 
     def extract_data(self, arr):
         """
@@ -867,7 +890,6 @@ class Uzel2022Preprocessor(NeuralBasePreprocessor):
             preprocessed_data[worm] = reshape_calcium_data(preprocessed_data[worm])
         # Save data
         self.save_data(preprocessed_data)
-        logger.info(f"Finished processing {self.source_dataset}.")
 
 
 class Dag2023Preprocessor(NeuralBasePreprocessor):
@@ -891,7 +913,8 @@ class Dag2023Preprocessor(NeuralBasePreprocessor):
         Initialize the Dag2023Preprocessor with the provided parameters.
 
         Parameters:
-            transform (object): The sklearn transformation to be applied to the data.
+            transform (object): The sklearn transformation to be applied to the
+            data.
             smooth_method (str): The smoothing method to apply to the data.
             interpolate_method (str): The interpolation method to use when resampling the data.
             resample_dt (float): The resampling time interval in seconds.
@@ -1076,7 +1099,6 @@ class Dag2023Preprocessor(NeuralBasePreprocessor):
             preprocessed_data[worm] = reshape_calcium_data(preprocessed_data[worm])
         # Save data
         self.save_data(preprocessed_data)
-        logger.info(f"Finished processing {self.source_dataset}.")
         return None
 
 
@@ -1100,7 +1122,8 @@ class Flavell2023Preprocessor(NeuralBasePreprocessor):
         Initialize the Flavell2023Preprocessor with the provided parameters.
 
         Parameters:
-            transform (object): The sklearn transformation to be applied to the data.
+            transform (object): The sklearn transformation to be applied to the
+            data.
             smooth_method (str): The smoothing method to apply to the data.
             interpolate_method (str): The interpolation method to use when resampling the data.
             resample_dt (float): The resampling time interval in seconds.
@@ -1238,7 +1261,6 @@ class Flavell2023Preprocessor(NeuralBasePreprocessor):
             preprocessed_data[worm] = reshape_calcium_data(preprocessed_data[worm])
         # Save data
         self.save_data(preprocessed_data)
-        logger.info(f"Finished processing {self.source_dataset}.")
 
 
 class Leifer2023Preprocessor(NeuralBasePreprocessor):
@@ -1264,7 +1286,8 @@ class Leifer2023Preprocessor(NeuralBasePreprocessor):
         Initialize the Leifer2023Preprocessor with the provided parameters.
 
         Parameters:
-            transform (object): The sklearn transformation to be applied to the data.
+            transform (object): The sklearn transformation to be applied to the
+            data.
             smooth_method (str): The smoothing method to apply to the data.
             interpolate_method (str): The interpolation method to use when resampling the data.
             resample_dt (float): The resampling time interval in seconds.
@@ -1506,7 +1529,6 @@ class Leifer2023Preprocessor(NeuralBasePreprocessor):
             preprocessed_data[worm] = reshape_calcium_data(preprocessed_data[worm])
         # Save data
         self.save_data(preprocessed_data)
-        logger.info(f"Finished processing {self.source_dataset}.")
 
 
 class Lin2023Preprocessor(NeuralBasePreprocessor):
@@ -1529,7 +1551,8 @@ class Lin2023Preprocessor(NeuralBasePreprocessor):
         Initialize the Lin2023Preprocessor with the provided parameters.
 
         Parameters:
-            transform (object): The sklearn transformation to be applied to the data.
+            transform (object): The sklearn transformation to be applied to the
+            data.
             smooth_method (str): The smoothing method to apply to the data.
             interpolate_method (str): The interpolation method to use when resampling the data.
             resample_dt (float): The resampling time interval in seconds.
@@ -1643,7 +1666,6 @@ class Lin2023Preprocessor(NeuralBasePreprocessor):
             preprocessed_data[worm] = reshape_calcium_data(preprocessed_data[worm])
         # Save data
         self.save_data(preprocessed_data)
-        logger.info(f"Finished processing {self.source_dataset}.")
 
 
 class Venkatachalam2024Preprocessor(NeuralBasePreprocessor):
@@ -1667,7 +1689,8 @@ class Venkatachalam2024Preprocessor(NeuralBasePreprocessor):
         Initialize the Venkatachalam2024Preprocessor with the provided parameters.
 
         Parameters:
-            transform (object): The sklearn transformation to be applied to the data.
+            transform (object): The sklearn transformation to be applied to the
+            data.
             smooth_method (str): The smoothing method to apply to the data.
             interpolate_method (str): The interpolation method to use when resampling the data.
             resample_dt (float): The resampling time interval in seconds.
@@ -1787,4 +1810,3 @@ class Venkatachalam2024Preprocessor(NeuralBasePreprocessor):
         for worm in preprocessed_data.keys():
             preprocessed_data[worm] = reshape_calcium_data(preprocessed_data[worm])
         self.save_data(preprocessed_data)
-        logger.info(f"Finished processing {self.source_dataset}.")

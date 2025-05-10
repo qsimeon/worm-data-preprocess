@@ -15,6 +15,7 @@ import numpy as np
 import pandas as pd
 from tqdm import tqdm
 from multiprocessing import Pool
+from collections import defaultdict
 
 # NOTE: IterativeImputer is experimental and the API might change without any deprecation cycle.
 # To use it, you need to explicitly import enable_iterative_imputer.
@@ -26,7 +27,7 @@ from scipy.interpolate import interp1d
 
 from pynwb import NWBHDF5IO
 from scipy.io import loadmat
-from typing import Dict, List
+from typing import Dict, List, Tuple, Set
 from sklearn import preprocessing
 from scipy.ndimage import gaussian_filter1d
 from torch_geometric.data import Data, download_url as tg_download_url
@@ -42,10 +43,15 @@ from _main_utils import (
     NEURON_LABELS,
     RAW_DATA_URL,
     RAW_DATA_DIR,
-    EXPERIMENT_DATASETS,
 )
 from preprocess.config import PREPROCESS_CONFIG
+EXPERIMENT_DATASETS = PREPROCESS_CONFIG['EXPERIMENT_DATASETS'] # explicit so imports continue to work
 
-# Configure the logger
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', datefmt='%d %H:%M:%S')
-logger = logging.getLogger('preprocess')
+# # Configure logger
+# logging.basicConfig(
+#     level=logging.INFO,
+#     format='%(asctime)s - %(name) - %(levelname)s - %(message)s',
+#     datefmt='%H:%M:%S'
+# )
+# # Create a logger for each module
+logger = logging.getLogger(__name__)

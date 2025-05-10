@@ -55,7 +55,7 @@ elif os.path.exists(labels_file):
     )
 else:
     # Enumarte all the labels manually (once) and save them to a text file
-    print(f"Saving to {labels_file}.\n")
+    # print(f"Saving to {labels_file}.\n")
     # fmt: off
     NEURON_LABELS = [ 
             # References: (1) https://www.wormatlas.org/neurons/Individual%20Neurons/Neuronframeset.html 
@@ -125,6 +125,17 @@ RAW_FILES = [
     # NOTE: "neuron_master_sheet.csv", once complete, should make the following files obsolete: "neuron_labels.txt", ""Witvliet2020_NeuronClasses.xlsx", "LowResAtlasWithHighResHeadsAndTails.csv", "Hobert2016_BrainAtlas.xlsx"
 ]
 
+# Datasets created with the (no longer existing, but in worm-graph)
+# `CreateSyntheticDataset.ipynb` notebook.
+SYNTHETIC_DATASETS = {  
+    "Sines0000",
+    "Lorenz0000",
+    "WhiteNoise0000",
+    "RandWalk0000",
+    "VanDerPol0000",
+    "Wikitext0000",
+}
+
 # Select correct device for torch
 def init_device():
     """
@@ -143,26 +154,6 @@ def init_device():
         device = torch.device("cpu")
     return device
 
-# Get GPU if available
-DEVICE = init_device()
-
-# Set of real C. elegans datasets we have processed
-EXPERIMENT_DATASETS = {
-    "Kato2015",
-    "Nichols2017",
-    "Skora2018",
-    "Kaplan2020",
-    "Nejatbakhsh2020",
-    "Yemini2021",
-    "Uzel2022",
-    "Dag2023",
-    "Leifer2023",  # Different type of dataset: stimulus-response.
-    "Lin2023",
-    "Flavell2023",  # TODO: Something is wrong with worm0 in this dataset. Specifically, "worm0" is always absent. Why?
-    "Venkatachalam2024",  # This is unpublished data. Downloaded from chemosensory-data.worm.world/.
-}
-
-
 # Method for globally setting all random seeds
 def init_random_seeds(seed=0):
     """
@@ -176,3 +167,9 @@ def init_random_seeds(seed=0):
         torch.cuda.manual_seed_all(seed)
         torch.backends.cudnn.deterministic = True
     return None
+
+
+# won't be called at import time
+if __name__ == "__main__":
+    # can import init_device() or DEVICE if needed for processing in future
+    DEVICE = init_device()

@@ -1,8 +1,52 @@
-from preprocess._pkg import *
-from preprocess.preprocessors._base_preprocessors import *
-from preprocess.preprocessors._neural import *
-from preprocess.preprocessors._connectome import *
+from preprocess._pkg import (
+    os,
+    shutil,
+    zipfile,
+    logger,
+    multiprocessing,
+    Pool,
+    urlopen,
+    tqdm,
+    tg_download_url,
+    StandardScaler,
+    RAW_ZIP,
+    ROOT_DIR,
+    RAW_DATA_URL,
+    RAW_DATA_DIR,
+    EXPERIMENT_DATASETS,
+)
 
+# used dynamically in process_single_dataset, hence why linter marks them as 'unused'
+from preprocess.preprocessors._neural import (
+    Kato2015Preprocessor,
+    Nichols2017Preprocessor,
+    Skora2018Preprocessor,
+    Kaplan2020Preprocessor,
+    Nejatbakhsh2020Preprocessor,
+    Yemini2021Preprocessor,
+    Uzel2022Preprocessor,
+    Dag2023Preprocessor,
+    Flavell2023Preprocessor,
+    Leifer2023Preprocessor,
+    Lin2023Preprocessor,
+    Venkatachalam2024Preprocessor,
+)
+
+from preprocess.preprocessors._connectome import (
+    DefaultPreprocessor,
+    ChklovskiiPreprocessor,
+    OpenWormPreprocessor,
+    Randi2023Preprocessor,
+    Witvliet2020Preprocessor7,
+    Witvliet2020Preprocessor8,
+    Cook2019Preprocessor,
+    White1986WholePreprocessor,
+    White1986N2UPreprocessor,
+    White1986JSHPreprocessor,
+    White1986JSEPreprocessor,
+)
+
+# --------------------------------------------------
 
 def download_url_with_progress(url, folder, log=True, filename=None):
     """
@@ -51,6 +95,9 @@ def process_single_dataset(args):
         )
         # Call its method
         preprocessor.preprocess()
+        
+        logger.info(f"Finished processing {source}") # Test to see if we can just log finish afterwards
+        
         return True
     except NameError as e:
         logger.info(f"NameError calling preprocessor: {e}")
@@ -66,7 +113,8 @@ def pickle_neural_data(
     interpolate_method="linear",
     resample_dt=None,
     cleanup=False,
-    n_workers=None,  # New parameter for controlling number of workers
+    use_multithreading=True,
+    n_workers=None, 
     **kwargs,
 ):
     """Preprocess and save C. elegans neural data to .pickle format.
@@ -82,7 +130,7 @@ def pickle_neural_data(
         source_dataset (str, optional): The name of the source dataset to be pickled.
             If None or 'all', all datasets are pickled. Default is 'all'.
         transform (object, optional): The sklearn transformation to be applied to the data.
-            Default is StandardScaler().
+            Default is StandardScaler()
         smooth_method (str, optional): The smoothing method to apply to the data;
             options are 'gaussian', 'exponential', or 'moving'. Default is 'moving'.
         interpolate_method (str, optional): The scipy interpolation method to use when resampling the data.
@@ -116,7 +164,7 @@ def pickle_neural_data(
     # If .zip not found in the root directory, download the curated open-source worm datasets
     if not os.path.exists(source_path):
         try:
-            # downloads opensource_neural_data
+            # downloads opensource_neural_data (eta 3:04)
             download_url_with_progress(url=url, folder=os.path.join(ROOT_DIR, "data"), filename=zipfile)
         except Exception as e:
             logger.error(f"Failed to download using async method: {e}")
@@ -158,19 +206,27 @@ def pickle_neural_data(
             os.unlink(zip_path)
     # (re)-Pickle all the datasets ... OR
     if source_dataset is None or source_dataset.lower() == "all":
-        # Determine number of workers (use CPU count - 1 by default)
+        # Determine number of workers (use CPU count - 1 by default if needed)
         if n_workers is None:
             n_workers = max(1, multiprocessing.cpu_count() - 1)
 
-        # Prepare arguments for parallel processing
+        # Prepare arguments for each dataset
+        # All datasets prepared using same smoothing, interpolation, and resampling
         process_args = [
             (source, transform, smooth_method, interpolate_method, resample_dt, kwargs)
             for source in EXPERIMENT_DATASETS
         ]
-
-        # Use multiprocessing Pool to process datasets in parallel
-        with Pool(processes=n_workers) as pool:
-            results = pool.map(process_single_dataset, process_args)
+        
+        if use_multithreading:
+            # Use multiprocessing Pool to process datasets in parallel
+            with Pool(processes=n_workers) as pool:
+                results = pool.map(process_single_dataset, process_args)
+        else:
+            # Process datasets sequentially
+            results = []
+            for args in process_args:
+                results.append(process_single_dataset(args))
+        
 
         # Create .processed file to indicate that some preprocessing was successful
         if any(results):  # If at least one dataset was processed successfully
@@ -190,35 +246,6 @@ def pickle_neural_data(
     # Delete the unzipped folder
     if cleanup:
         shutil.rmtree(source_path)
-    return None
-
-
-def get_presaved_datasets(url, file):
-    """Download and unzip presaved data patterns.
-
-    This function downloads and extracts presaved data patterns).
-    from the specified URL. The extracted data is saved in the 'data' folder.
-    The zip file is deleted after extraction.
-
-    Args:
-        url (str): The download link to the zip file containing the presaved data splits.
-        file (str): The name of the zip file to be downloaded.
-
-    Returns:
-        None
-
-    Steps:
-        1. Construct the paths for the zip file and the data directory.
-        2. Download the zip file from the specified URL.
-        3. Extract the contents of the zip file to the data directory.
-        4. Delete the zip file after extraction.
-    """
-    presaved_url = url
-    presaved_file = file
-    presave_path = os.path.join(ROOT_DIR, presaved_file)
-    data_path = os.path.join(ROOT_DIR, "data")
-    download_url_with_progress(url=presaved_url, folder=ROOT_DIR, filename=presaved_file)
-    extract_zip(presave_path, folder=data_path, delete_zip=True)
     return None
 
 
@@ -285,7 +312,7 @@ def preprocess_connectome(raw_files, source_connectome=None):
     preprocessors = {
         "openworm": OpenWormPreprocessor,
         "chklovskii": ChklovskiiPreprocessor,
-        "funconn": Randi2023Preprocessor,
+        "funconn": Randi2023Preprocessor, # just a synonym
         "randi_2023": Randi2023Preprocessor,
         "witvliet_7": Witvliet2020Preprocessor7,
         "witvliet_8": Witvliet2020Preprocessor8,
@@ -294,7 +321,7 @@ def preprocess_connectome(raw_files, source_connectome=None):
         "white_1986_jsh": White1986JSHPreprocessor,
         "white_1986_jse": White1986JSEPreprocessor,
         "cook_2019": Cook2019Preprocessor,
-        None: DefaultPreprocessor,
+        None: DefaultPreprocessor, # for any dataset without defined preprocessor
     }
 
     # Preprocess all the connectomes including the default one
@@ -302,6 +329,8 @@ def preprocess_connectome(raw_files, source_connectome=None):
         for preprocessor_class in preprocessors.values():
             preprocessor_class().preprocess()
         # Create a file to indicate that the preprocessing was successful
+        # Only done if all were preprocessed (single dataset is fast enough to
+        # repreprocess each time)
         open(os.path.join(processed_path, ".processed"), "a").close()
 
     # Preprocess just the requested connectome
@@ -342,5 +371,3 @@ def extract_zip(path: str, folder: str = None, log: bool = True, delete_zip: boo
         os.unlink(path)
 
 
-
-# # # ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~#
